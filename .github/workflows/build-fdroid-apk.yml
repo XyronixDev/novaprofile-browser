@@ -56,7 +56,11 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: NovaProfile-release-apk
-          path: app/build/outputs/apk/fdroid/release/app-fdroid-release.apk
+          # Diagnostic run #12 proved the real output name is
+          # duckduckgo-2.8.0-fdroid-release-unsigned.apk (DDG names the
+          # APK after the app + version, not the module). Glob so a
+          # future version bump cannot break the path again.
+          path: app/build/outputs/apk/fdroid/release/*.apk
 
       - name: Create Asana task when workflow failed on push to develop
         if: ${{ failure() && github.ref == 'refs/heads/develop' && github.event_name == 'push' }}
