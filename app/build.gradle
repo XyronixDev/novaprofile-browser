@@ -21,7 +21,7 @@ ext {
 
 android {
     defaultConfig {
-        applicationId "com.duckduckgo.mobile.android"
+        applicationId "com.novaprofiles.app"
 
         minSdk min_sdk
         targetSdk target_sdk
@@ -140,16 +140,16 @@ android {
             applicationIdSuffix ".debug"
             pseudoLocalesEnabled false
             manifestPlaceholders = [
-                    appIcon     : "@mipmap/ic_launcher_blue",
-                    appIconRound: "@mipmap/ic_launcher_blue_round"
+                    appIcon     : "@mipmap/ic_launcher_novaprofile",
+                    appIconRound: "@mipmap/ic_launcher_novaprofile_round"
             ]
         }
         release {
             minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             manifestPlaceholders = [
-                    appIcon     : "@mipmap/ic_launcher_red",
-                    appIconRound: "@mipmap/ic_launcher_red_round"
+                    appIcon     : "@mipmap/ic_launcher_novaprofile",
+                    appIconRound: "@mipmap/ic_launcher_novaprofile_round"
             ]
 
             if (project.hasProperty('useUploadSigning')) {
@@ -565,6 +565,11 @@ dependencies {
     implementation AndroidX.recyclerView
     implementation AndroidX.swipeRefreshLayout
     implementation AndroidX.webkit
+    // NovaProfile: DataStore settings + Webshare key, and the extended
+    // Material icons used by the NovaProfile home screen (version from
+    // the Compose BOM, api-exposed by :design-system).
+    implementation "androidx.datastore:datastore-preferences:_"
+    implementation "androidx.compose.material:material-icons-extended"
     // Backs the internal-flavor PageLoadTracer (src/internal); other flavors bind a no-op instead.
     internalImplementation AndroidX.tracing
     implementation Square.okHttp3.okHttp
