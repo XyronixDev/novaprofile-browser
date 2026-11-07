@@ -19,8 +19,10 @@
 package com.duckduckgo.app.browser
 
 import android.annotation.SuppressLint
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.Intent.EXTRA_TEXT
 import android.content.res.Configuration
 import android.os.Bundle
@@ -44,6 +46,9 @@ import androidx.annotation.VisibleForTesting
 import androidx.core.net.toUri
 import androidx.core.view.ViewCompat
 import androidx.core.view.isVisible
+import androidx.core.content.ContextCompat
+import com.novaprofiles.app.util.NovaProfileSession
+import com.novaprofiles.app.util.ProxyHelper
 import androidx.core.view.postDelayed
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.Lifecycle.State.STARTED
@@ -388,6 +393,17 @@ open class BrowserActivity : DuckDuckGoActivity() {
     private var setAsDefaultBrowserDialog: DefaultBrowserBottomSheetDialog? = null
 
     @SuppressLint("MissingSuperCall")
+    // NovaProfile: the home screen tells a running browser to stop
+    // (Stop / Stop all). The proxy is cleared here too, so the live
+    // browser never falls back to a direct connection.
+    private val stopProfileReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            NovaProfileSession.clearRunning(this@BrowserActivity)
+            ProxyHelper.clear(ContextCompat.getMainExecutor(this@BrowserActivity)) {}
+            finish()
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.injectDependencies()
 
@@ -424,6 +440,13 @@ open class BrowserActivity : DuckDuckGoActivity() {
         configureEdgeToEdge()
 
         setContentView(binding.root)
+
+        ContextCompat.registerReceiver(
+            this,
+            stopProfileReceiver,
+            IntentFilter(NovaProfileSession.STOP_PROFILE_ACTION),
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        )
 
         initializeTabs(savedInstanceState)
 
@@ -648,6 +671,11 @@ open class BrowserActivity : DuckDuckGoActivity() {
     }
 
     override fun onDestroy() {
+        try {
+            unregisterReceiver(stopProfileReceiver)
+        } catch (e: IllegalArgumentException) {
+            // Receiver was never registered (onCreate did not reach it).
+        }
         currentTab = null
 
         if (swipingTabsFeature.isEnabled) {

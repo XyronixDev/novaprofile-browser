@@ -32,6 +32,8 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import com.novaprofiles.app.util.FingerprintJs
+import com.novaprofiles.app.util.NovaProfileSession
 import androidx.annotation.StringRes
 import androidx.annotation.UiThread
 import androidx.annotation.WorkerThread
@@ -644,6 +646,11 @@ class BrowserWebViewClient @Inject constructor(
         }
 
         lastInterceptedAppSchemeUrl = null
+        // NovaProfile: per-profile fingerprint overrides (JS-level) on
+        // every page load, from the profile the home screen set running.
+        NovaProfileSession.currentProfile()?.let { profile ->
+            webView.evaluateJavascript(FingerprintJs.build(profile), null)
+        }
         webViewClientListener?.onMainFrameNavigationCommitted()
         if (url != null && pageLoadFeature.pageLoadTimeoutWatchdog().isEnabled()) pageLoadTimeoutWatchdog.onCommitted(url)
 
@@ -803,6 +810,11 @@ class BrowserWebViewClient @Inject constructor(
         url: String?,
     ) {
         logcat(VERBOSE) { "onPageFinished webViewUrl: ${webView.url} URL: $url progress: ${webView.progress}" }
+        // NovaProfile: re-apply the fingerprint overrides on page finish
+        // (same as onPageStarted — some pages reset overrides on load).
+        NovaProfileSession.currentProfile()?.let { profile ->
+            webView.evaluateJavascript(FingerprintJs.build(profile), null)
+        }
         url?.let { pageLoadTimeoutWatchdog.onFinished(it) }
 
         // WebView reports the outgoing page's progress for a never-committing (204) navigation, so this can't wait for the progress check below.
@@ -984,6 +996,15 @@ class BrowserWebViewClient @Inject constructor(
         realm: String?,
     ) {
         logcat(VERBOSE) { "onReceivedHttpAuthRequest ${view?.url} $realm, $host" }
+        // NovaProfile: answer proxy auth with the running profile's
+        // credentials before DuckDuckGo's own stored-credentials flow.
+        val novaProfile = NovaProfileSession.currentProfile()
+        if (handler != null && novaProfile != null && novaProfile.proxyMode != "NONE" &&
+            novaProfile.proxyUser.isNotBlank() && host == novaProfile.proxyHost
+        ) {
+            handler.proceed(novaProfile.proxyUser, novaProfile.proxyPass)
+            return
+        }
         if (handler != null) {
             logcat(VERBOSE) { "onReceivedHttpAuthRequest - useHttpAuthUsernamePassword [${handler.useHttpAuthUsernamePassword()}]" }
             if (handler.useHttpAuthUsernamePassword()) {
