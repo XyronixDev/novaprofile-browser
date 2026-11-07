@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface ProfileDao {
-    @Query("SELECT * FROM profiles WHERE deletedAt IS NULL ORDER BY updatedAt DESC")
+    @Query("SELECT * FROM profiles WHERE deletedAt IS NULL ORDER BY id ASC")
     fun getAll(): Flow<List<Profile>>
 
     @Query("SELECT * FROM profiles WHERE deletedAt IS NOT NULL ORDER BY deletedAt DESC")
@@ -22,7 +22,7 @@ interface ProfileDao {
     @Query("SELECT DISTINCT folder FROM profiles WHERE deletedAt IS NULL ORDER BY folder ASC")
     fun getFolders(): Flow<List<String>>
 
-    @Query("SELECT * FROM profiles WHERE deletedAt IS NULL AND (name LIKE '%' || :q || '%' OR folder LIKE '%' || :q || '%') ORDER BY updatedAt DESC")
+    @Query("SELECT * FROM profiles WHERE deletedAt IS NULL AND (name LIKE '%' || :q || '%' OR folder LIKE '%' || :q || '%') ORDER BY id ASC")
     fun search(q: String): Flow<List<Profile>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
