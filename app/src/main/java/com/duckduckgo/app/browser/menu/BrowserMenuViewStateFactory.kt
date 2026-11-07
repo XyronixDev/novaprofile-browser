@@ -26,6 +26,7 @@ import com.duckduckgo.appbuildconfig.api.AppBuildConfig
 import com.duckduckgo.appbuildconfig.api.isInternalBuild
 import com.duckduckgo.browser.ui.browsermenu.BrowserMenuViewState
 import com.duckduckgo.browser.ui.browsermenu.PageContextHeaderState
+import com.duckduckgo.browser.ui.browsermenu.VpnMenuState
 import com.duckduckgo.di.scopes.AppScope
 import com.duckduckgo.downloads.api.NewDownloadState
 import com.duckduckgo.duckchat.api.DuckAiFeatureState
@@ -103,13 +104,16 @@ class RealBrowserMenuViewStateFactory @Inject constructor(
     private fun createNewTabPageViewState(
         browserViewState: BrowserViewState,
     ): BrowserMenuViewState.NewTabPage {
+        // NovaProfile v2.8.1: lean menu — only the important items stay.
+        // Duck.ai, VPN, Email Protection and the default-browser promo
+        // are removed; the flags below hide their menu rows.
         return BrowserMenuViewState.NewTabPage(
-            showDuckChatOption = browserViewState.showDuckChatOption,
-            showDuckChatHistoryOption = browserViewState.showDuckChatHistoryOption,
-            showDuckAiSection = duckAiFeatureState.showPopupMenuShortcut.value,
-            showDuckChatVoiceOption = duckAiFeatureState.showVoiceChatEntry.value,
-            vpnMenuState = browserViewState.vpnMenuState,
-            isEmailSignedIn = browserViewState.isEmailSignedIn,
+            showDuckChatOption = false,
+            showDuckChatHistoryOption = false,
+            showDuckAiSection = false,
+            showDuckChatVoiceOption = false,
+            vpnMenuState = VpnMenuState.Hidden,
+            isEmailSignedIn = false,
             showAutofill = browserViewState.showAutofill,
             showDownloadDot = newDownloadState.hasNewDownload(),
             canGoForward = browserViewState.canGoForward,
@@ -122,13 +126,14 @@ class RealBrowserMenuViewStateFactory @Inject constructor(
         title: String?,
         tabId: String,
     ): BrowserMenuViewState.DuckAi {
+        // NovaProfile v2.8.1: Duck.ai is removed from the menu.
         return BrowserMenuViewState.DuckAi(
-            canPrintPage = browserViewState.canPrintPage,
+            canPrintPage = false,
             showAutofill = browserViewState.showAutofill,
             showDownloadDot = newDownloadState.hasNewDownload(),
-            showDuckChatHistoryOption = browserViewState.showDuckChatHistoryOption,
-            showDuckAiSection = duckAiFeatureState.showPopupMenuShortcut.value,
-            showDuckChatVoiceOption = duckAiFeatureState.showVoiceChatEntry.value,
+            showDuckChatHistoryOption = false,
+            showDuckAiSection = false,
+            showDuckChatVoiceOption = false,
             pageContextHeader = PageContextHeaderState.DuckAi(title = title, tabId = tabId),
         )
     }
@@ -143,35 +148,39 @@ class RealBrowserMenuViewStateFactory @Inject constructor(
         siteUrl: String? = null,
     ): BrowserMenuViewState.Browser {
         val isDuckDuckGoPage = siteUrl?.let { duckDuckGoUrlDetector.isDuckDuckGoUrl(it) } ?: false
+        // NovaProfile v2.8.1: lean menu — only the important items stay.
+        // Duck.ai, VPN, Email Protection, Fireproof, Print, Add to Home,
+        // Report a broken site and the default-browser promo are removed;
+        // the flags below hide their menu rows.
         return BrowserMenuViewState.Browser(
             canGoBack = browserViewState.canGoBack,
             canGoForward = browserViewState.canGoForward,
-            showDuckChatOption = browserViewState.showDuckChatOption,
-            showDuckChatHistoryOption = browserViewState.showDuckChatHistoryOption,
-            showDuckAiSection = duckAiFeatureState.showPopupMenuShortcut.value,
-            showDuckChatVoiceOption = duckAiFeatureState.showVoiceChatEntry.value,
+            showDuckChatOption = false,
+            showDuckChatHistoryOption = false,
+            showDuckAiSection = false,
+            showDuckChatVoiceOption = false,
             canSharePage = browserViewState.canSharePage,
-            showSelectDefaultBrowserMenuItem = browserViewState.showSelectDefaultBrowserMenuItem,
+            showSelectDefaultBrowserMenuItem = false,
             canSaveSite = browserViewState.canSaveSite,
             isBookmark = browserViewState.bookmark != null,
-            vpnMenuState = browserViewState.vpnMenuState,
-            canFireproofSite = browserViewState.canFireproofSite,
-            isFireproofWebsite = browserViewState.isFireproofWebsite,
+            vpnMenuState = VpnMenuState.Hidden,
+            canFireproofSite = false,
+            isFireproofWebsite = false,
             showFireMenuItem = browserViewState.fireButton is HighlightableButton.Visible,
             showDownloadDot = newDownloadState.hasNewDownload(),
-            isEmailSignedIn = browserViewState.isEmailSignedIn,
+            isEmailSignedIn = false,
             canChangeBrowsingMode = browserViewState.canChangeBrowsingMode && browserViewState.currentPdfCachedUri == null,
             isDesktopBrowsingMode = browserViewState.isDesktopBrowsingMode,
             hasPreviousAppLink = browserViewState.previousAppLink != null,
             canFindInPage = browserViewState.canFindInPage && browserViewState.currentPdfCachedUri == null,
-            addToHomeVisible = browserViewState.addToHomeVisible,
-            addToHomeEnabled = browserViewState.addToHomeEnabled,
+            addToHomeVisible = false,
+            addToHomeEnabled = false,
             canChangePrivacyProtection = browserViewState.canChangePrivacyProtection && !isDuckDuckGoPage,
             isPrivacyProtectionDisabled = browserViewState.isPrivacyProtectionDisabled,
-            canReportSite = browserViewState.canReportSite && !isDuckDuckGoPage,
+            canReportSite = false,
             showAutofill = browserViewState.showAutofill,
             isSSLError = browserViewState.sslError != NONE,
-            canPrintPage = browserViewState.canPrintPage,
+            canPrintPage = false,
             showDownloadPdfMenuItem = browserViewState.currentPdfCachedUri != null,
             showInternalFeedback = appBuildConfig.isInternalBuild(),
             pageContextHeader = createBrowserHeaderContextState(browserViewState, title, tabId, shortUrl, omnibarText, serpLogoUrl, siteUrl),
