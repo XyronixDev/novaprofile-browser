@@ -90,6 +90,13 @@ abstract class DuckDuckGoActivity : InjectableActivity() {
             ),
         )
         super.onCreate(savedInstanceState)
+        // NovaProfile v2.8.2: status bar 100% white on every screen —
+        // solid white background, dark icons. The light theme's bar
+        // was transparent, so the content behind it showed through
+        // as grey on some screens.
+        window.statusBarColor = Color.WHITE
+        window.decorView.systemUiVisibility =
+            window.decorView.systemUiVisibility or View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
     }
 
     protected fun injectDependencies() {
@@ -136,6 +143,11 @@ abstract class DuckDuckGoActivity : InjectableActivity() {
             SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
         }
         enableEdgeToEdge(statusBarStyle = barStyle, navigationBarStyle = barStyle)
+        // NovaProfile v2.8.2: re-apply the solid white status bar —
+        // enableEdgeToEdge above resets it to transparent, and the
+        // user wants 100% white on every screen. The light bar style
+        // (dark icons) set above is kept.
+        window.statusBarColor = Color.WHITE
         applyDisplayCutoutMode(resources.configuration.orientation)
     }
 
