@@ -37,7 +37,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Android
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.KeyboardArrowUp
@@ -46,7 +45,6 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Stop
@@ -58,8 +56,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
@@ -109,6 +105,12 @@ import com.duckduckgo.app.browser.mode.AppLauncher
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // NovaProfile v2.8.2: status bar 100% white on every screen —
+        // solid white background, dark icons. (DDG activities get the
+        // same treatment in DuckDuckGoActivity.)
+        window.statusBarColor = android.graphics.Color.WHITE
+        window.decorView.systemUiVisibility =
+            window.decorView.systemUiVisibility or android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
         // DDG port: no viewmodel-compose artifact in this project — the
         // ViewModel is created with the standard AndroidViewModelFactory.
         val vm = ViewModelProvider(
@@ -209,6 +211,9 @@ fun MainScreen(vm: ProfileViewModel) {
     var labProfile by remember { mutableStateOf<Profile?>(null) }
     val proxyStore = remember { ProxyStore(ctx) }
     val settingsStore = remember { SettingsStore(ctx) }
+    // v2.8.2: the saved Webshare key — the country picker tries the
+    // user's own Webshare proxies first when a key is saved.
+    val webshareKey by settingsStore.webshareApiKey.collectAsState(initial = "")
     val scope = rememberCoroutineScope()
 
     /** Sessions (v2.0 Pro): tell a running browser to stop itself. */
@@ -360,6 +365,12 @@ fun MainScreen(vm: ProfileViewModel) {
                                     pass = p.proxyPass
                                 )
                                 val loc = proxyStore.resolveLocation(entry)
+                                // v2.8.2: launch with the FRESH profile —
+                                // the old code saved the re-synced timezone
+                                // to Room but launched the browser with the
+                                // STALE profile, so whoer saw a timezone
+                                // mismatch (78% instead of ~90%).
+                                var toLaunch = p
                                 if (loc != null) {
                                     val updated = p.copy(
                                         timezone = if (p.timezoneMode == "IP") loc.timezone else p.timezone,
@@ -367,6 +378,7 @@ fun MainScreen(vm: ProfileViewModel) {
                                         longitude = if (p.geoMode == "IP" && loc.lon != 0.0) loc.lon else p.longitude
                                     )
                                     vm.updateNow(updated)
+                                    toLaunch = updated
                                     val saved = proxyStore.proxies.value.firstOrNull {
                                         it.host == p.proxyHost && it.port == p.proxyPort
                                     }
@@ -379,7 +391,7 @@ fun MainScreen(vm: ProfileViewModel) {
                                         )
                                     }
                                 }
-                                val launched = launchProfile(p)
+                                val launched = launchProfile(toLaunch)
                                 syncingIds = syncingIds - p.id
                                 if (launched) {
                                     runningIds = runningIds + p.id
@@ -398,10 +410,6 @@ fun MainScreen(vm: ProfileViewModel) {
                     onStop = { p -> stopProfile(p.id) },
                     onStopAll = { stopProfile(null) },
                     onEdit = { editing = it },
-                    // v2.7.2: no Duplicate, no trash — Delete asks once
-                    // and then permanently deletes the profile.
-                    onDelete = { pendingDelete = it },
-                    onCheckFingerprint = { labProfile = it },
                     onShowAbout = { showAbout = true },
                     noticeProfileId = launchFailedId,
                     noticeText = proxyCheck,
@@ -450,6 +458,11 @@ fun MainScreen(vm: ProfileViewModel) {
             onCheckProxy = { p -> vm.checkProxy(p, "https://api.ipify.org") },
             proxyCheckResult = proxyCheck,
             onClearNotice = { vm.clearNotices() },
+            // v2.8.2: Delete + Check fingerprint moved here from the
+            // card's 3-dot menu (menu removed, user order).
+            onDelete = { pendingDelete = it },
+            onCheckFingerprint = { labProfile = it },
+            webshareApiKey = webshareKey,
             proxyStore = proxyStore
         )
     }
@@ -460,7 +473,7 @@ fun MainScreen(vm: ProfileViewModel) {
             title = { Text("About NovaProfile") },
             text = {
                 Text(
-                    "NovaProfile 2.8.1 Pro — original multi-profile browser.\n\n" +
+                    "NovaProfile 2.8.2 Pro — original multi-profile browser.\n\n" +
                         "• Unlimited profiles, everything free, no billing, no trial.\n" +
                         "• Per-profile cookies, proxy, user-agent, language, " +
                         "screen, WebGL and Canvas settings.\n" +
@@ -489,6 +502,11 @@ fun MainScreen(vm: ProfileViewModel) {
                 TextButton(onClick = {
                     vm.deleteForever(p)
                     pendingDelete = null
+                    // v2.8.2: Delete is only reachable from the editor
+                    // now — close the editor too, or it would keep
+                    // showing a deleted profile.
+                    editing = null
+                    creating = false
                 }) { Text("Delete") }
             },
             dismissButton = {
@@ -549,9 +567,6 @@ private fun ProfilesTab(
     onStop: (Profile) -> Unit,
     onStopAll: () -> Unit,
     onEdit: (Profile) -> Unit,
-    // v2.7.2: no Duplicate, no trash — onDelete permanently deletes.
-    onDelete: (Profile) -> Unit,
-    onCheckFingerprint: (Profile) -> Unit,
     onShowAbout: () -> Unit,
     noticeProfileId: Long? = null,
     noticeText: String? = null,
@@ -647,8 +662,6 @@ private fun ProfilesTab(
                         onRun = { onRun(p) },
                         onStop = { onStop(p) },
                         onEdit = { onEdit(p) },
-                        onDelete = { onDelete(p) },
-                        onCheckFingerprint = { onCheckFingerprint(p) },
                         notice = if (noticeProfileId == p.id) noticeText else null,
                         onDismissNotice = onDismissNotice
                     )
@@ -666,13 +679,9 @@ private fun GoProfileRow(
     onRun: () -> Unit,
     onStop: () -> Unit,
     onEdit: () -> Unit,
-    // v2.7.2: no Duplicate, no trash — onDelete permanently deletes.
-    onDelete: () -> Unit,
-    onCheckFingerprint: () -> Unit,
     notice: String? = null,
     onDismissNotice: () -> Unit = {}
 ) {
-    var menuOpen by remember { mutableStateOf(false) }
     val (flag, code) = countryOf(profile)
     val connection = when (profile.proxyMode) {
         "NONE" -> "Direct"
@@ -684,7 +693,10 @@ private fun GoProfileRow(
         modifier = Modifier
             .fillMaxWidth()
             .background(if (running) GoMintBg else Color.White)
-            .clickable { onEdit() }
+            // v2.8.2: tap the card to open / return to the browser —
+            // the editor moved to the pencil. Disabled while the
+            // location re-sync is running, so a tap cannot double-launch.
+            .clickable(enabled = !syncing) { onRun() }
             .padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -709,71 +721,66 @@ private fun GoProfileRow(
                     color = if (running) GoGreenDark else GoGreyText
                 )
             }
-            Icon(
-                Icons.Filled.Android,
-                contentDescription = null,
-                tint = Color(0xFF9AA0A6),
-                modifier = Modifier.size(26.dp)
-            )
-            Spacer(Modifier.width(10.dp))
-                if (running) {
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clip(CircleShape)
-                            .background(GoStopRed)
-                            .clickable { onStop() },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(Icons.Filled.Stop, null, tint = Color.White, modifier = Modifier.size(22.dp))
-                    }
-                } else if (syncing) {
-                    // v2.6: location re-sync in progress — spinner, no double tap.
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clip(CircleShape)
-                            .border(1.5.dp, GoGreen, CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            color = GoGreen,
-                            strokeWidth = 2.dp
-                        )
-                    }
-                } else {
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clip(CircleShape)
-                            .border(1.5.dp, GoGreen, CircleShape)
-                            .clickable { onRun() },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(Icons.Filled.PlayArrow, null, tint = GoGreen, modifier = Modifier.size(24.dp))
-                    }
-                }
-            Box {
-                IconButton(onClick = { menuOpen = true }, modifier = Modifier.size(32.dp)) {
-                    Icon(Icons.Filled.MoreVert, contentDescription = "More", tint = GoGreyText)
-                }
-                // v2.7.2: menu is just Check fingerprint / Edit /
-                // Delete — no Duplicate, no trash, Delete is permanent.
-                DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                    DropdownMenuItem(
-                        text = { Text("Check fingerprint") },
-                        onClick = { menuOpen = false; onCheckFingerprint() }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Edit") },
-                        onClick = { menuOpen = false; onEdit() }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Delete", color = Color(0xFFD93025)) },
-                        onClick = { menuOpen = false; onDelete() }
+            // v2.8.2: the grey Android icon and the 3-dot menu are gone
+            // (user order). A running profile shows an Eye — tap it (or
+            // the card) to jump back into the open browser on the same
+            // page. A stopped profile shows the green Play. Edit is the
+            // pencil; Delete and Check fingerprint live in the editor.
+            if (running) {
+                IconButton(onClick = onRun, modifier = Modifier.size(48.dp)) {
+                    Icon(
+                        Icons.Filled.Visibility,
+                        contentDescription = "View browser",
+                        tint = GoGreen,
+                        modifier = Modifier.size(26.dp)
                     )
                 }
+                Spacer(Modifier.width(4.dp))
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .background(GoStopRed)
+                        .clickable { onStop() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Filled.Stop, null, tint = Color.White, modifier = Modifier.size(22.dp))
+                }
+            } else if (syncing) {
+                // v2.6: location re-sync in progress — spinner, no double tap.
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .border(1.5.dp, GoGreen, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = GoGreen,
+                        strokeWidth = 2.dp
+                    )
+                }
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .border(1.5.dp, GoGreen, CircleShape)
+                        .clickable { onRun() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Filled.PlayArrow, null, tint = GoGreen, modifier = Modifier.size(24.dp))
+                }
+            }
+            Spacer(Modifier.width(4.dp))
+            IconButton(onClick = onEdit, modifier = Modifier.size(40.dp)) {
+                Icon(
+                    Icons.Filled.Edit,
+                    contentDescription = "Edit",
+                    tint = GoGreyText,
+                    modifier = Modifier.size(22.dp)
+                )
             }
         }
         // v2.8.1: the folder ("General") and "new" pills are removed
@@ -1240,6 +1247,12 @@ fun EditorScreen(
     proxyCheckResult: String?,
     onClearNotice: () -> Unit,
     proxyStore: ProxyStore,
+    // v2.8.2: Delete + Check fingerprint moved here from the card's
+    // 3-dot menu (menu removed, user order); webshareApiKey lets the
+    // picker try the user's own Webshare proxies first.
+    onDelete: (Profile) -> Unit = {},
+    onCheckFingerprint: (Profile) -> Unit = {},
+    webshareApiKey: String = "",
     // v2.7.2: new profiles are auto-numbered (Profile 1, 2, 3…) — the
     // name field is gone from the sheet, so MainScreen passes the next
     // free number in.
@@ -1272,6 +1285,7 @@ fun EditorScreen(
                 proxyPickerOpen -> ProxyPickerView(
                     proxyStore = proxyStore,
                     scope = scope,
+                    webshareApiKey = webshareApiKey,
                     onPicked = { working, cs ->
                         proxyStore.add(working)
                         draft = draft.copy(
@@ -1344,6 +1358,14 @@ fun EditorScreen(
                     )) {
                         SectionRow(label) { extSection = key }
                     }
+                    // v2.8.2: Check fingerprint stays — it lives here on
+                    // the profile form (user order: keep it, put it in
+                    // the right place, do not remove it).
+                    SectionRow(
+                        label = "Check fingerprint",
+                        sub = "whoer.net — live disguise + proxy check",
+                        onClick = { onCheckFingerprint(draft) }
+                    )
                     error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Button(
@@ -1363,6 +1385,15 @@ fun EditorScreen(
                             Text(if (initial == null) "Add profile" else "Save profile")
                         }
                         TextButton(onClick = onCancel) { Text("Cancel") }
+                    }
+                    // v2.8.2: Delete lives here now (the card's 3-dot
+                    // menu is gone) — it asks once, then deletes
+                    // permanently; the editor closes on confirm.
+                    if (initial != null) {
+                        TextButton(
+                            onClick = { onDelete(draft) },
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text("Delete profile", color = Color(0xFFD93025)) }
                     }
                     Spacer(Modifier.height(24.dp))
                 }
@@ -1437,12 +1468,15 @@ private fun SwitchRow(label: String, checked: Boolean, onCheckedChange: (Boolean
 private fun ProxyPickerView(
     proxyStore: ProxyStore,
     scope: CoroutineScope,
+    webshareApiKey: String = "",
     onPicked: (ProxyEntry, Profile.CountrySettings) -> Unit,
     onBack: () -> Unit
 ) {
-    // v2.8.1: tap a country and the proxy auto-connects — no loading
-    // text, no "Proxy is ok!" card, no "Add proxy" button (user order).
-    // Only a failure still shows, under the tapped country.
+    // v2.8.2: tap a country and the proxy auto-connects — a spinner +
+    // "Connecting…" shows under the tapped row while it fetches and
+    // tests (user order: the user must SEE it connecting), success
+    // applies at once with no "Add proxy" button, and only a failure
+    // shows an error, under the tapped country.
     var connectingCode by remember { mutableStateOf<String?>(null) }
     var pickedCode by remember { mutableStateOf<String?>(null) }
     var pickingError by remember { mutableStateOf<String?>(null) }
@@ -1475,7 +1509,7 @@ private fun ProxyPickerView(
                             pickingError = null
                             connectingCode = code
                             scope.launch {
-                                val candidates = proxyStore.fetchFreeProxies(code, limit = 10)
+                                val candidates = proxyStore.fetchBestProxies(code, webshareApiKey, limit = 10)
                                 if (candidates.isEmpty()) {
                                     pickingError =
                                         "Could not fetch any free ${cs.label} proxies — " +
@@ -1505,6 +1539,31 @@ private fun ProxyPickerView(
                         contentDescription = null,
                         tint = GoGreyText
                     )
+                }
+                // v2.8.2: while a country is connecting, SAY SO under
+                // the tapped row — a spinner + "Connecting…" — so the
+                // user can see the proxy is being fetched and tested.
+                // (v2.8.1 hid all feedback; the phone test showed the
+                // user could not tell anything was happening.)
+                if (connectingCode == code) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(1.dp)
+                            .background(GoDivider)
+                    )
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            color = GoGreen,
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(Modifier.width(10.dp))
+                        Text("Connecting to ${cs.label}…", color = GoGreyText)
+                    }
                 }
                 // v2.8.1: only a failure expands under the tapped
                 // country — success auto-connects (no card, no button).
