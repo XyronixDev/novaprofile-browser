@@ -21,14 +21,12 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Rect
 import android.os.Bundle
-import android.util.TypedValue
 import android.view.LayoutInflater
 import android.view.TouchDelegate
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
-import androidx.annotation.AttrRes
 import androidx.annotation.VisibleForTesting
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.lifecycleScope
@@ -280,7 +278,7 @@ class TabSwitcherAdapter(
         val context = holder.rootView.context
         val glide = Glide.with(context)
         holder.title.text = tab.title
-        holder.favicon.setImageResource(CommonR.drawable.ic_duck_ai_color_24)
+        holder.favicon.setImageResource(AndroidR.drawable.ic_globe_24)
         updateUnreadIndicator(holder, tab.tabEntity)
         loadTabPreviewImage(tab.tabEntity, glide, holder.tabPreview, holder)
         loadSelectionState(holder, tab)
@@ -297,7 +295,7 @@ class TabSwitcherAdapter(
         holder.title.text = context.getString(BrowserUiR.string.duck_ai_tab_label)
         holder.url.text = tab.tabEntity.title ?: ""
         holder.url.visibility = View.VISIBLE
-        holder.favicon.setImageResource(CommonR.drawable.ic_duck_ai_color_24)
+        holder.favicon.setImageResource(AndroidR.drawable.ic_globe_24)
         updateUnreadIndicator(holder, tab.tabEntity)
         loadSelectionState(holder, tab)
         attachTabClickListeners(
@@ -549,7 +547,7 @@ class TabSwitcherAdapter(
         val url = tab.url
         if (url.isNullOrBlank()) {
             glide.clear(view)
-            glide.load(AndroidR.drawable.ic_dax_icon).into(view)
+            glide.load(AndroidR.drawable.ic_globe_24).into(view)
         } else {
             holder.trackJob(
                 lifecycleOwner.lifecycleScope.launch {
@@ -582,8 +580,10 @@ class TabSwitcherAdapter(
 
         val previewFile = tab.tabPreviewFile
         if (tab.url.isNullOrBlank() && !tab.isAboutBlank) {
-            val placeholder = tabPreview.resolveThemedDrawableAttr(CommonR.attr.daxDrawableTabPlaceholderPreview)
-            glide.load(placeholder)
+            // NovaProfile v2.8.2: the new-tab preview used to show the
+            // DuckDuckGo duck — a neutral globe now (the app is
+            // NovaProfile; no DuckDuckGo traces).
+            glide.load(AndroidR.drawable.ic_globe_24)
                 .into(tabPreview)
         } else if (previewFile != null) {
             holder.trackJob(
@@ -606,7 +606,7 @@ class TabSwitcherAdapter(
                             .into(tabPreview)
                     } catch (e: Exception) {
                         logcat(ERROR) { "Error loading tab preview for ${tab.tabId}: ${e.message}" }
-                        glide.load(AndroidR.drawable.ic_dax_icon_72).into(tabPreview)
+                        glide.load(AndroidR.drawable.ic_globe_24).into(tabPreview)
                     }
                 },
             )
@@ -682,12 +682,6 @@ class TabSwitcherAdapter(
 
     fun setAnimationTileCloseClickListener(onClick: () -> Unit) {
         onAnimationTileCloseClickListener = onClick
-    }
-
-    private fun View.resolveThemedDrawableAttr(@AttrRes attr: Int): Int {
-        val typedValue = TypedValue()
-        context.theme.resolveAttribute(attr, typedValue, true)
-        return typedValue.resourceId
     }
 
     sealed class TabSwitcherViewHolder(rootView: View) : ViewHolder(rootView) {
