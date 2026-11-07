@@ -54,7 +54,8 @@ class NewTabPage @Inject constructor() : NewTabPagePlugin {
         showLogo: Boolean,
         onHasContent: ((Boolean) -> Unit)?,
     ): View {
-        return NewTabPageView(context, showLogo = showLogo, onHasContent = onHasContent)
+        // NovaProfile v2.8.1: no DuckDuckGo logo on the new-tab page.
+        return NewTabPageView(context, showLogo = false, onHasContent = onHasContent)
     }
 }
 
