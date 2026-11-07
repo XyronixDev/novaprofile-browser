@@ -92,6 +92,16 @@
             android:name="android.webkit.WebView.EnableSafeBrowsing"
             android:value="false" />
 
+        <!-- NovaProfile: profile home screen is the launcher; it opens
+             DuckDuckGo's browser with the running profile applied. -->
+        <activity
+            android:name="com.novaprofiles.app.ui.MainActivity"
+            android:exported="true"
+            android:icon="${appIcon}"
+            android:label="@string/appName"
+            android:roundIcon="${appIconRound}"
+            android:theme="@android:style/Theme.Material.Light.NoActionBar" />
+
         <!-- Renamed to allow for the introduction of custom icons without breaking existing shortcuts -->
         <activity
             android:name="com.duckduckgo.app.launch.LaunchBridgeActivity"
@@ -111,7 +121,7 @@
             android:exported="true"
             android:icon="${appIcon}"
             android:roundIcon="${appIconRound}"
-            android:targetActivity="com.duckduckgo.app.launch.LaunchBridgeActivity">
+            android:targetActivity="com.novaprofiles.app.ui.MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
