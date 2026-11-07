@@ -302,6 +302,29 @@ class ProxyStore(context: Context) {
         }
 
     /**
+     * v2.8.2: the country picker's candidate list — the user's own
+     * Webshare proxies for the country FIRST (stable, geo-matched,
+     * with auth), then the free pool. When no Webshare key is saved
+     * this is just the free list. Both sources are fetched in parallel;
+     * checkFirstWorking tests them all at once and keeps the fastest
+     * working one, so a good Webshare proxy wins over a slow free one.
+     */
+    suspend fun fetchBestProxies(country: String, webshareKey: String, limit: Int = 10): List<ProxyEntry> =
+        withContext(Dispatchers.IO) {
+            val cc = country.uppercase()
+            val webshareDef = async {
+                if (webshareKey.isBlank()) emptyList()
+                else fetchWebshareProxies(webshareKey).filter {
+                    it.country.substringBefore(" •").uppercase() == cc
+                }
+            }
+            val freeDef = async { fetchFreeProxies(cc, limit = limit) }
+            val seen = mutableSetOf<String>()
+            (webshareDef.await() + freeDef.await())
+                .filter { seen.add("${it.host}:${it.port}") }
+        }
+
+    /**
      * Parallel fastest-working test (v2.3, rebuilt v2.4): tests all
      * [candidates] at once and returns the FASTEST one that actually
      * proxies. v2.3 stopped at the FIRST working proxy — which could be
