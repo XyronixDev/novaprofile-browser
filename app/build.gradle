@@ -69,6 +69,17 @@ android {
 
         namespace 'com.duckduckgo.app.browser'
     }
+    // NovaProfile v2.8.1: one APK per ABI instead of one universal APK
+    // carrying all four native sets — the arm64 APK (the user's phone)
+    // drops the other ABIs' .so files and is much smaller.
+    splits {
+        abi {
+            enable true
+            reset()
+            include "arm64-v8a", "armeabi-v7a", "x86", "x86_64"
+            universalApk false
+        }
+    }
     buildFeatures {
         viewBinding = true
         buildConfig = true
