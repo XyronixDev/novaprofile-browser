@@ -45,6 +45,13 @@ jobs:
           MALICIOUS_SITE_PROTECTION_AUTH_TOKEN: ${{ secrets.MALICIOUS_SITE_PROTECTION_AUTH_TOKEN }}
         run: ./gradlew assembleFdroidRelease
 
+      - name: List APK outputs (diagnostic)
+        run: |
+          echo "--- app/build/outputs/apk ---"
+          find app/build/outputs/apk -type f | head -50
+          echo "--- output-metadata.json ---"
+          find app/build/outputs -name "output-metadata.json" | head -10
+
       - name: Upload release APK
         uses: actions/upload-artifact@v4
         with:
