@@ -158,23 +158,6 @@ fun countryOf(profile: Profile): Pair<String, String> {
 }
 
 /**
- * v2.7.2: resolve a saved proxy's country to a 2-letter code. Sources
- * disagree on the format — "US • United States" (ProxyScrape/GitHub),
- * a bare full name "United States" (Geonode), or a bare code "US".
- * The old code only handled the first form, so Geonode proxies never
- * updated the language and the card kept showing the old country.
- */
-fun proxyCountryCode(entryCountry: String): String? {
-    val token = entryCountry.substringBefore(" •").trim()
-    if (token.length == 2 && token.uppercase() in Profile.pickerCountries) {
-        return token.uppercase()
-    }
-    return Profile.pickerCountries.firstOrNull {
-        Profile.countrySettings(it).label.equals(token, ignoreCase = true)
-    }
-}
-
-/**
  * v2.7.3: parse the manual Add-proxy IP field ("198.165.0.0:8080" or
  * a bare host — port defaults to 8080). Returns null when the field
  * cannot be a proxy address; the Add button stays disabled then.
@@ -219,6 +202,9 @@ fun MainScreen(vm: ProfileViewModel) {
     var runningIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
     // v2.6: profiles whose proxy location is being re-synced before launch.
     var syncingIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
+    // v2.8.1: the profile whose last launch failed — its result is shown
+    // on its own card (never at the bottom of the screen).
+    var launchFailedId by remember { mutableStateOf<Long?>(null) }
     var searchOpen by remember { mutableStateOf(false) }
     var labProfile by remember { mutableStateOf<Profile?>(null) }
     val proxyStore = remember { ProxyStore(ctx) }
@@ -244,6 +230,7 @@ fun MainScreen(vm: ProfileViewModel) {
      *  proxy that cannot be applied means no browser at all. */
     suspend fun launchProfile(p: Profile): Boolean {
         if (!NovaProfileSession.prepare(ctx, p)) {
+            launchFailedId = p.id
             vm.proxyCheckResult.value =
                 "Proxy apply nahi hua (${ProxyHelper.summary(p)}). Dobara try karo — browser direct nahi khola."
             return false
@@ -351,6 +338,7 @@ fun MainScreen(vm: ProfileViewModel) {
                     runningIds = runningIds,
                     syncingIds = syncingIds,
                     onRun = { p ->
+                        launchFailedId = null
                         // v2.6 smart 90% fix: before opening the browser,
                         // re-resolve the proxy IP's CURRENT timezone +
                         // coordinates (one ip-api call through the proxy)
@@ -414,45 +402,17 @@ fun MainScreen(vm: ProfileViewModel) {
                     // and then permanently deletes the profile.
                     onDelete = { pendingDelete = it },
                     onCheckFingerprint = { labProfile = it },
-                    onShowAbout = { showAbout = true }
+                    onShowAbout = { showAbout = true },
+                    noticeProfileId = launchFailedId,
+                    noticeText = proxyCheck,
+                    onDismissNotice = { vm.clearNotices(); launchFailedId = null }
                 )
                 HomeTab.PROXIES -> ProxiesTab(
                     proxyStore = proxyStore,
                     profiles = profiles,
                     proxyCheckResult = proxyCheck,
                     onCheckProxy = { p -> vm.checkProxy(p, "https://api.ipify.org") },
-                    onClearNotice = { vm.clearNotices() },
-                    onAssignProxy = { entry, p ->
-                        // v2.5/v2.6: timezone + language + coordinates
-                        // follow the proxy's IP — but only when the
-                        // profile's modes say IP-based; Custom keeps
-                        // the user's own values.
-                        // v2.7.2: resolve the country with the helper
-                        // (bare full names from Geonode included) and
-                        // store it on the profile — the card flag reads
-                        // this, so the card can no longer show the old
-                        // country after the proxy changes.
-                        val code = proxyCountryCode(entry.country)
-                        val cs = code?.let { Profile.countrySettings(it) }
-                        vm.update(
-                            p.copy(
-                                proxyMode = entry.mode,
-                                proxyHost = entry.host,
-                                proxyPort = entry.port,
-                                proxyUser = entry.user,
-                                proxyPass = entry.pass,
-                                proxyCountry = code ?: p.proxyCountry,
-                                timezone = if (p.timezoneMode == "IP")
-                                    entry.lastTimezone.ifBlank { p.timezone } else p.timezone,
-                                language = if (p.languagesMode == "IP" && cs != null)
-                                    cs.language else p.language,
-                                latitude = if (p.geoMode == "IP" && entry.lastLat != 0.0)
-                                    entry.lastLat else p.latitude,
-                                longitude = if (p.geoMode == "IP" && entry.lastLon != 0.0)
-                                    entry.lastLon else p.longitude
-                            )
-                        )
-                    }
+                    onClearNotice = { vm.clearNotices() }
                 )
                 HomeTab.SETTINGS -> SettingsTab(
                     profiles = profiles,
@@ -500,7 +460,7 @@ fun MainScreen(vm: ProfileViewModel) {
             title = { Text("About NovaProfile") },
             text = {
                 Text(
-                    "NovaProfile 2.7.3 Pro — original multi-profile browser.\n\n" +
+                    "NovaProfile 2.8.1 Pro — original multi-profile browser.\n\n" +
                         "• Unlimited profiles, everything free, no billing, no trial.\n" +
                         "• Per-profile cookies, proxy, user-agent, language, " +
                         "screen, WebGL and Canvas settings.\n" +
@@ -592,7 +552,10 @@ private fun ProfilesTab(
     // v2.7.2: no Duplicate, no trash — onDelete permanently deletes.
     onDelete: (Profile) -> Unit,
     onCheckFingerprint: (Profile) -> Unit,
-    onShowAbout: () -> Unit
+    onShowAbout: () -> Unit,
+    noticeProfileId: Long? = null,
+    noticeText: String? = null,
+    onDismissNotice: () -> Unit = {}
 ) {
     Column(Modifier.fillMaxSize()) {
         // Account row: green avatar + name + search.
@@ -685,7 +648,9 @@ private fun ProfilesTab(
                         onStop = { onStop(p) },
                         onEdit = { onEdit(p) },
                         onDelete = { onDelete(p) },
-                        onCheckFingerprint = { onCheckFingerprint(p) }
+                        onCheckFingerprint = { onCheckFingerprint(p) },
+                        notice = if (noticeProfileId == p.id) noticeText else null,
+                        onDismissNotice = onDismissNotice
                     )
                 }
             }
@@ -703,7 +668,9 @@ private fun GoProfileRow(
     onEdit: () -> Unit,
     // v2.7.2: no Duplicate, no trash — onDelete permanently deletes.
     onDelete: () -> Unit,
-    onCheckFingerprint: () -> Unit
+    onCheckFingerprint: () -> Unit,
+    notice: String? = null,
+    onDismissNotice: () -> Unit = {}
 ) {
     var menuOpen by remember { mutableStateOf(false) }
     val (flag, code) = countryOf(profile)
@@ -809,32 +776,35 @@ private fun GoProfileRow(
                 }
             }
         }
-        // Tag pills: folder + "new" when never run.
-        Row(
-            modifier = Modifier.padding(start = 18.dp, top = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Color(0xFFF1F3F4))
-                    .padding(horizontal = 10.dp, vertical = 4.dp)
-            ) { Text(profile.folder, fontSize = 12.sp, color = GoGreyText) }
-            if (profile.lastRunAt == 0L) {
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(Color(0xFFE6F4EA))
-                        .padding(horizontal = 10.dp, vertical = 4.dp)
-                ) { Text("new", fontSize = 12.sp, color = GoGreenDark) }
-            }
-            if (profile.notes.isNotBlank()) {
+        // v2.8.1: the folder ("General") and "new" pills are removed
+        // (user order) — only a real note shows as a pill.
+        if (profile.notes.isNotBlank()) {
+            Row(
+                modifier = Modifier.padding(start = 18.dp, top = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(12.dp))
                         .background(Color(0xFFE8F0FE))
                         .padding(horizontal = 10.dp, vertical = 4.dp)
                 ) { Text(profile.notes, fontSize = 12.sp, color = Color(0xFF1967D2)) }
+            }
+        }
+        // v2.8.1: a proxy check / launch result is attached to this
+        // profile's own card — never at the bottom of the screen.
+        if (notice != null) {
+            Row(
+                modifier = Modifier.padding(start = 18.dp, top = 8.dp, end = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    notice,
+                    fontSize = 13.sp,
+                    color = Color(0xFFD93025),
+                    modifier = Modifier.weight(1f)
+                )
+                TextButton(onClick = onDismissNotice) { Text("OK", fontSize = 13.sp) }
             }
         }
     }
@@ -856,13 +826,13 @@ private fun ProxiesTab(
     profiles: List<Profile>,
     proxyCheckResult: String?,
     onCheckProxy: (Profile) -> Unit,
-    onClearNotice: () -> Unit,
-    onAssignProxy: (ProxyEntry, Profile) -> Unit
+    onClearNotice: () -> Unit
 ) {
     val savedProxies by proxyStore.proxies.collectAsState()
     val scope = rememberCoroutineScope()
-    var checkingId by remember { mutableStateOf<String?>(null) }
-    var assignTarget by remember { mutableStateOf<ProxyEntry?>(null) }
+    // v2.8.1: the check result is attached to the profile card it
+    // belongs to — never at the bottom of the tab.
+    var checkedProfileId by remember { mutableStateOf<Long?>(null) }
     // v2.7.3: GoLogin-style manual add — one IP field (host:port),
     // Protocol (Auto/HTTP/SOCKS5), login, password, proxy name.
     var newName by remember { mutableStateOf("") }
@@ -885,10 +855,7 @@ private fun ProxiesTab(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Text("Proxies", fontWeight = FontWeight.Bold, fontSize = 20.sp)
-        Text(
-            "Your proxies, saved on this phone. Test one, then assign it to a profile.",
-            color = GoGreyText
-        )
+        Text("Your proxies, saved on this phone.", color = GoGreyText)
 
         // Manual add stays, but hidden behind one small link (v2.5).
         TextButton(onClick = { showManual = !showManual }) {
@@ -1034,27 +1001,11 @@ private fun ProxiesTab(
                     )
                 }
                 Spacer(Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(
-                        onClick = {
-                            checkingId = entry.id
-                            scope.launch {
-                                val checked = proxyStore.check(entry)
-                                proxyStore.update(checked)
-                                checkingId = null
-                            }
-                        },
-                        enabled = checkingId != entry.id,
-                        colors = ButtonDefaults.buttonColors(containerColor = GoGreen)
-                    ) { Text(if (checkingId == entry.id) "Testing…" else "Test") }
-                    Button(
-                        onClick = { assignTarget = entry },
-                        enabled = profiles.isNotEmpty(),
-                        colors = ButtonDefaults.buttonColors(containerColor = GoGreen)
-                    ) { Text("Assign") }
-                    TextButton(onClick = { proxyStore.remove(entry.id) }) {
-                        Text("Delete", color = Color(0xFFD93025))
-                    }
+                // v2.8.1: Test and Assign are removed (user order) — a
+                // proxy connects from the profile editor's country
+                // picker; here it is only listed and deleted.
+                TextButton(onClick = { proxyStore.remove(entry.id) }) {
+                    Text("Delete", color = Color(0xFFD93025))
                 }
             }
         }
@@ -1076,39 +1027,16 @@ private fun ProxiesTab(
                 Text(ProxyHelper.summary(p), color = GoGreyText)
                 Spacer(Modifier.height(8.dp))
                 Button(
-                    onClick = { onClearNotice(); onCheckProxy(p) },
+                    onClick = { checkedProfileId = p.id; onClearNotice(); onCheckProxy(p) },
                     colors = ButtonDefaults.buttonColors(containerColor = GoGreen)
                 ) { Text("Check proxy") }
+                // v2.8.1: the check result lives INSIDE this profile's
+                // card — never at the bottom of the tab.
+                if (checkedProfileId == p.id) {
+                    proxyCheckResult?.let { Text(it, color = GoGreyText) }
+                }
             }
         }
-        proxyCheckResult?.let { Text(it) }
-    }
-
-    // Assign-to-profile picker.
-    assignTarget?.let { target ->
-        AlertDialog(
-            onDismissRequest = { assignTarget = null },
-            title = { Text("Assign \"${target.name}\" to…") },
-            text = {
-                LazyColumn {
-                    items(profiles, key = { it.id }) { p ->
-                        Text(
-                            p.name,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    onAssignProxy(target, p)
-                                    assignTarget = null
-                                }
-                                .padding(vertical = 12.dp)
-                        )
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { assignTarget = null }) { Text("Cancel") }
-            }
-        )
     }
 }
 
@@ -1325,7 +1253,6 @@ fun EditorScreen(
     // from the Proxies tab, user order), extended-settings section.
     var proxyPickerOpen by remember { mutableStateOf(false) }
     var extSection by remember { mutableStateOf<String?>(null) }
-    var connectingCountry by remember { mutableStateOf<String?>(null) }
     var countryStatus by remember { mutableStateOf<String?>(null) }
 
     // v2.5: GoLogin-style bottom sheet instead of a full-screen form.
@@ -1345,10 +1272,6 @@ fun EditorScreen(
                 proxyPickerOpen -> ProxyPickerView(
                     proxyStore = proxyStore,
                     scope = scope,
-                    connectingCountry = connectingCountry,
-                    onConnectingCountry = { connectingCountry = it },
-                    countryStatus = countryStatus,
-                    onCountryStatus = { countryStatus = it },
                     onPicked = { working, cs ->
                         proxyStore.add(working)
                         draft = draft.copy(
@@ -1375,7 +1298,7 @@ fun EditorScreen(
                                 "Save the profile to apply."
                         proxyPickerOpen = false
                     },
-                    onBack = { connectingCountry = null; proxyPickerOpen = false }
+                    onBack = { proxyPickerOpen = false }
                 )
                 extSection != null -> ExtendedSectionView(
                     section = extSection!!,
@@ -1434,17 +1357,10 @@ fun EditorScreen(
                                     else -> onSave(draft)
                                 }
                             },
-                            // v2.3: Save stays locked while a one-tap connect is
-                            // running — saving early used to cancel the job, which
-                            // is exactly how v2.2 lost the proxy on the phone.
-                            enabled = connectingCountry == null,
                             colors = ButtonDefaults.buttonColors(containerColor = GoGreen),
                             modifier = Modifier.weight(1f)
                         ) {
-                            Text(
-                                if (connectingCountry != null) "Connecting ${connectingCountry}…"
-                                else if (initial == null) "Add profile" else "Save profile"
-                            )
+                            Text(if (initial == null) "Add profile" else "Save profile")
                         }
                         TextButton(onClick = onCancel) { Text("Cancel") }
                     }
@@ -1521,14 +1437,13 @@ private fun SwitchRow(label: String, checked: Boolean, onCheckedChange: (Boolean
 private fun ProxyPickerView(
     proxyStore: ProxyStore,
     scope: CoroutineScope,
-    connectingCountry: String?,
-    onConnectingCountry: (String?) -> Unit,
-    countryStatus: String?,
-    onCountryStatus: (String?) -> Unit,
     onPicked: (ProxyEntry, Profile.CountrySettings) -> Unit,
     onBack: () -> Unit
 ) {
-    var pickedProxy by remember { mutableStateOf<ProxyEntry?>(null) }
+    // v2.8.1: tap a country and the proxy auto-connects — no loading
+    // text, no "Proxy is ok!" card, no "Add proxy" button (user order).
+    // Only a failure still shows, under the tapped country.
+    var connectingCode by remember { mutableStateOf<String?>(null) }
     var pickedCode by remember { mutableStateOf<String?>(null) }
     var pickingError by remember { mutableStateOf<String?>(null) }
 
@@ -1551,38 +1466,32 @@ private fun ProxyPickerView(
         ) {
             for (code in Profile.pickerCountries) {
                 val cs = Profile.countrySettings(code)
-                val expanded = connectingCountry == code || pickedCode == code
+                val expanded = pickedCode == code
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable(enabled = connectingCountry == null) {
-                            pickedProxy = null
+                        .clickable(enabled = connectingCode == null) {
                             pickedCode = code
                             pickingError = null
-                            onConnectingCountry(code)
-                            onCountryStatus("Fetching $code proxies…")
+                            connectingCode = code
                             scope.launch {
                                 val candidates = proxyStore.fetchFreeProxies(code, limit = 10)
                                 if (candidates.isEmpty()) {
                                     pickingError =
                                         "Could not fetch any free ${cs.label} proxies — " +
                                             "check connection and try again."
+                                    connectingCode = null
                                 } else {
-                                    onCountryStatus("Testing ${candidates.size} ${cs.label} proxies…")
                                     val working = proxyStore.checkFirstWorking(candidates)
+                                    connectingCode = null
                                     if (working != null) {
-                                        pickedProxy = working
-                                        onCountryStatus(
-                                            "${cs.label} connected • ${working.lastIp} • " +
-                                                "${working.lastMs} ms"
-                                        )
+                                        onPicked(working, cs)
                                     } else {
                                         pickingError =
                                             "No working free ${cs.label} proxy right now — " +
                                                 "free proxies die fast. Try again."
                                     }
                                 }
-                                onConnectingCountry(null)
                             }
                         }
                         .padding(horizontal = 12.dp, vertical = 12.dp),
@@ -1597,52 +1506,20 @@ private fun ProxyPickerView(
                         tint = GoGreyText
                     )
                 }
-                // v2.7.1: search + result expand UNDER the tapped country
-                // (user order) — no more result card pinned at the bottom.
-                if (expanded) {
+                // v2.8.1: only a failure expands under the tapped
+                // country — success auto-connects (no card, no button).
+                if (expanded && pickingError != null) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(1.dp)
                             .background(GoDivider)
                     )
-                    if (connectingCountry == code) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            CircularProgressIndicator(modifier = Modifier.size(20.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text(countryStatus ?: "Checking…", color = GoGreyText)
-                        }
-                    } else if (pickedCode == code && pickedProxy != null) {
-                        val wp = pickedProxy!!
-                        Column(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Text(
-                                "Proxy is ok! • ${wp.lastIp} • ${wp.lastMs} ms" +
-                                    (if (wp.lastTimezone.isNotBlank()) " • ${wp.lastTimezone}" else ""),
-                                color = GoGreenDark,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text("HTTP • Free", color = GoGreyText)
-                            Button(
-                                onClick = { onPicked(wp, cs) },
-                                colors = ButtonDefaults.buttonColors(containerColor = GoGreen),
-                                modifier = Modifier.fillMaxWidth()
-                            ) { Text("Add proxy") }
-                        }
-                    } else if (pickedCode == code) {
-                        pickingError?.let {
-                            Text(
-                                it,
-                                color = MaterialTheme.colorScheme.error,
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
-                            )
-                        }
-                    }
+                    Text(
+                        pickingError!!,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
+                    )
                 }
             }
         }
@@ -1766,17 +1643,31 @@ private fun ProxyLocationSection(
     proxyCheckResult: String?
 ) {
     Text("Proxy", fontWeight = FontWeight.Bold)
-    SectionRow(
-        label = if (draft.proxyMode == "NONE") "Connect proxy"
-        else "${draft.proxyMode} ${draft.proxyHost}:${draft.proxyPort}",
-        sub = if (draft.proxyMode == "NONE") "Tap to pick a country"
-        else "Timezone ${draft.timezone}",
-        onClick = onOpenProxyPicker
-    )
-    Button(onClick = { onClearNotice(); onCheckProxy(draft) }) {
-        Text("Check proxy")
+    // v2.8.1: the check result lives INSIDE this proxy card — never at
+    // the bottom of the sheet.
+    var checkedHere by remember { mutableStateOf(false) }
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .border(1.dp, GoDivider, RoundedCornerShape(12.dp))
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        SectionRow(
+            label = if (draft.proxyMode == "NONE") "Connect proxy"
+            else "${draft.proxyMode} ${draft.proxyHost}:${draft.proxyPort}",
+            sub = if (draft.proxyMode == "NONE") "Tap to pick a country"
+            else "Timezone ${draft.timezone}",
+            onClick = onOpenProxyPicker
+        )
+        Button(onClick = { checkedHere = true; onClearNotice(); onCheckProxy(draft) }) {
+            Text("Check proxy")
+        }
+        if (checkedHere) {
+            proxyCheckResult?.let { Text(it, color = GoGreyText) }
+        }
     }
-    proxyCheckResult?.let { Text(it) }
     Text("Timezone", fontWeight = FontWeight.Bold)
     ChoiceChips(
         options = listOf("IP" to "Fill based on IP", "CUSTOM" to "Custom"),
