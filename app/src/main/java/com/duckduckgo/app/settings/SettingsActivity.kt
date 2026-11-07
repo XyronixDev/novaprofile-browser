@@ -302,6 +302,24 @@ class SettingsActivity : DuckDuckGoActivity() {
     }
 
     private fun configureSettings() {
+        // NovaProfile v2.8.1: lean settings — only the important rows
+        // stay (search, tracking protection, cookie popups, fire button,
+        // autofill, permissions, accessibility, general, default browser,
+        // about). Everything else is junk for a profile browser and is
+        // hidden here; the update* methods below keep it hidden.
+        viewsPrivacy.emailSetting.gone()
+        viewsPrivacy.vpnSetting.gone()
+        viewsPrivacy.widgetPromptSetting.gone()
+        viewsMain.syncSetting.gone()
+        viewsMain.appearanceSetting.gone()
+        viewsMain.includeDuckChatSetting.root.gone()
+        viewsNextSteps.settingsSectionOther.gone()
+        viewsOther.whatsNewSetting.gone()
+        viewsOther.getDesktopBrowserSetting.gone()
+        viewsOther.ddgOnOtherPlatformsSetting.gone()
+        viewsOther.shareFeedbackSetting.gone()
+        viewsCompleteSetup.settingsSectionCompleteSetup.gone()
+
         viewsPrivacy.vpnSetting.setLeadingIconResource(
             resolveAppTpSettingsIcon(appBrandDesignUpdateToggles.pictograms().isEnabled()),
         )
@@ -394,63 +412,23 @@ class SettingsActivity : DuckDuckGoActivity() {
     }
 
     private fun updateDuckChat(isDuckChatEnabled: Boolean) {
-        if (isDuckChatEnabled) {
-            viewsMain.includeDuckChatSetting.duckChatSetting.show()
-        } else {
-            viewsMain.includeDuckChatSetting.duckChatSetting.gone()
-        }
+        // NovaProfile v2.8.1: Duck.ai is removed — never show it.
+        viewsMain.includeDuckChatSetting.root.gone()
     }
 
     private fun updateVoiceSearchVisibility(isVisible: Boolean) {
-        viewsNextSteps.enableVoiceSearchSetting.isVisible = isVisible
+        // NovaProfile v2.8.1: voice search is removed — never show it.
+        viewsNextSteps.enableVoiceSearchSetting.gone()
     }
 
     private fun updateAddWidgetInProtections(isVisible: Boolean, widgetsInstalled: Boolean) {
-        if (isVisible) {
-            viewsPrivacy.widgetPromptSetting.setStatus(isOn = widgetsInstalled)
-        }
-        viewsPrivacy.widgetPromptSetting.isVisible = isVisible
+        // NovaProfile v2.8.1: the add-widget prompt is removed.
+        viewsPrivacy.widgetPromptSetting.gone()
     }
 
     private fun updateNextStepsSection(viewState: SettingsViewModel.ViewState) {
-        with(viewsNextSteps) {
-            if (viewState.nextStepsSectionHidden) {
-                settingsSectionOther.gone()
-                return
-            }
-
-            // Apply individual item dismissals
-            if (viewState.nextStepsAddressBarDismissed) {
-                addressBarPositionSetting.gone()
-            }
-            if (viewState.nextStepsVoiceSearchDismissed) {
-                enableVoiceSearchSetting.gone()
-            }
-            if (viewState.isAddWidgetInProtectionsVisible || viewState.widgetsInstalled) {
-                viewsNextSteps.addWidgetToHomeScreenSetting.gone()
-            } else {
-                viewsNextSteps.addWidgetToHomeScreenSetting.show()
-            }
-
-            // Check if all items are gone — hide the entire section
-            val addressBarVisible = addressBarPositionSetting.isVisible
-            val voiceSearchVisible = enableVoiceSearchSetting.isVisible
-            val widgetVisible = addWidgetToHomeScreenSetting.isVisible
-            if (!addressBarVisible && !voiceSearchVisible && !widgetVisible) {
-                settingsSectionOther.gone()
-                return
-            }
-
-            settingsSectionOther.show()
-
-            // Show/hide the overflow menu on the section header
-            settingsNextStepsTitle.showOverflowMenuIcon(viewState.showNextStepsHideButton)
-            if (viewState.showNextStepsHideButton) {
-                settingsNextStepsTitle.setOverflowMenuClickListener { anchorView ->
-                    showNextStepsHidePopupMenu(anchorView)
-                }
-            }
-        }
+        // NovaProfile v2.8.1: the whole Next Steps section is removed.
+        viewsNextSteps.settingsSectionOther.gone()
     }
 
     private fun showNextStepsHidePopupMenu(anchorView: View) {
@@ -465,12 +443,14 @@ class SettingsActivity : DuckDuckGoActivity() {
     }
 
     private fun updateWhatsNewVisibility(isVisible: Boolean) {
-        viewsOther.whatsNewSetting.isVisible = isVisible
+        // NovaProfile v2.8.1: What's New is removed — never show it.
+        viewsOther.whatsNewSetting.gone()
     }
 
     private fun updateGetDesktopBrowserItemVisibility(isVisible: Boolean) {
-        viewsOther.getDesktopBrowserSetting.isVisible = isVisible
-        viewsOther.ddgOnOtherPlatformsSetting.isVisible = !isVisible
+        // NovaProfile v2.8.1: the desktop-browser promos are removed.
+        viewsOther.getDesktopBrowserSetting.gone()
+        viewsOther.ddgOnOtherPlatformsSetting.gone()
     }
 
     private fun watchForCompleteSetupSettingsChanges() {
@@ -486,12 +466,9 @@ class SettingsActivity : DuckDuckGoActivity() {
     }
 
     private fun updateCompleteSetupSettings() {
-        val viewsToInclude = completeSetupSettingsPlugin.map { it.getView(this) }
-
-        with(viewsCompleteSetup.settingsCompleteFeaturesContainer) {
-            removeAllViews()
-            viewsToInclude.forEach { addView(it) }
-        }
+        // NovaProfile v2.8.1: Complete Setup promos are removed — no
+        // views are added, so the section stays hidden.
+        viewsCompleteSetup.settingsSectionCompleteSetup.gone()
     }
 
     private fun updateAutofill(autofillEnabled: Boolean) = with(viewsMain.autofillLoginsSetting) {
@@ -507,9 +484,8 @@ class SettingsActivity : DuckDuckGoActivity() {
     }
 
     private fun updateSyncSetting(visible: Boolean) {
-        with(viewsMain.syncSetting) {
-            isVisible = visible
-        }
+        // NovaProfile v2.8.1: Sync is removed — never show it.
+        viewsMain.syncSetting.gone()
     }
 
     private fun updateAutoconsent(enabled: Boolean) {
