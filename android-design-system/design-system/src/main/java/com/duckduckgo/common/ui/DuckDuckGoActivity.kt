@@ -31,7 +31,6 @@ import androidx.appcompat.widget.Toolbar
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
-import com.duckduckgo.common.ui.DuckDuckGoTheme.DARK
 import com.duckduckgo.common.ui.store.AppBrandDesignUpdateToggles
 import com.duckduckgo.common.ui.store.ThemingDataStore
 import com.duckduckgo.common.ui.view.isFullScreen
@@ -78,8 +77,11 @@ abstract class DuckDuckGoActivity : InjectableActivity() {
         injectDependencies: Boolean = true,
     ) {
         if (injectDependencies) injectDependencies()
+        // NovaProfile v2.8.1: light mode only — dark mode is removed
+        // entirely, so the stored theme is ignored and LIGHT is forced
+        // (including fire mode, which has its own light variant).
         themeChangeReceiver = applyTheme(
-            themingDataStore.theme,
+            DuckDuckGoTheme.LIGHT,
             applyFireTheme,
             appBrandDesignUpdateToggles.theme().isEnabled(),
             listOfNotNull(
@@ -118,11 +120,9 @@ abstract class DuckDuckGoActivity : InjectableActivity() {
     }
 
     fun isDarkThemeEnabled(): Boolean {
-        return when (themingDataStore.theme) {
-            DuckDuckGoTheme.SYSTEM_DEFAULT -> isInNightMode()
-            DARK -> true
-            else -> false
-        }
+        // NovaProfile v2.8.1: dark mode is removed — always light, so
+        // edge-to-edge bars always use the light (dark-on-white) style.
+        return false
     }
 
     /**
