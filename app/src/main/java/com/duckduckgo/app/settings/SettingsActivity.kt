@@ -304,9 +304,13 @@ class SettingsActivity : DuckDuckGoActivity() {
     private fun configureSettings() {
         // NovaProfile v2.8.1: lean settings — only the important rows
         // stay (search, tracking protection, cookie popups, fire button,
-        // autofill, permissions, accessibility, general, default browser,
-        // about). Everything else is junk for a profile browser and is
-        // hidden here; the update* methods below keep it hidden.
+        // autofill, permissions, accessibility, general, default browser).
+        // Everything else is junk for a profile browser and is hidden
+        // here; the update* methods below keep it hidden.
+        // v2.8.2: About is removed too (user order) — the About page is
+        // pure DuckDuckGo branding (duck logo, "Welcome to the Duck
+        // Side!"), and this is NovaProfile now.
+        viewsOther.aboutSetting.gone()
         viewsPrivacy.emailSetting.gone()
         viewsPrivacy.vpnSetting.gone()
         viewsPrivacy.widgetPromptSetting.gone()
