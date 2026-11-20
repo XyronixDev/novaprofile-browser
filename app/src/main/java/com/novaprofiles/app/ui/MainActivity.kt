@@ -130,10 +130,13 @@ class MainActivity : ComponentActivity() {
  * v2.7.2: the card flag comes from the profile's stored proxy country
  * first — that is the real proxy. Language is only a fallback (old
  * profiles created before proxyCountry existed).
+ * v2.8.5: any 2-letter proxy country wins — the old pickerCountries gate
+ * showed the wrong flag for proxy countries outside that list (a Poland
+ * proxy showed the US flag).
  */
 fun countryOf(profile: Profile): Pair<String, String> {
     val pc = profile.proxyCountry.trim().uppercase()
-    if (pc.length == 2 && pc in Profile.pickerCountries) {
+    if (pc.length == 2) {
         return Profile.flagEmoji(pc) to pc
     }
     return when {
@@ -157,9 +160,10 @@ fun countryOf(profile: Profile): Pair<String, String> {
 }
 
 /**
- * v2.7.3: parse the manual Add-proxy IP field ("198.165.0.0:8080" or
- * a bare host — port defaults to 8080). Returns null when the field
- * cannot be a proxy address; the Add button stays disabled then.
+ * v2.7.3: parse the manual Add-proxy IP field ("198.165.0.0:8080").
+ * A port is required since v2.8.4 — a bare host returns null. Returns
+ * null when the field cannot be a proxy address; the Add button stays
+ * disabled then.
  */
 fun parseManualIp(raw: String): Pair<String, Int>? {
     val t = raw.trim()
@@ -450,7 +454,7 @@ fun MainScreen(vm: ProfileViewModel) {
             title = { Text("About NovaProfile") },
             text = {
                 Text(
-                    "NovaProfile 2.8.4 Pro — original multi-profile browser.\n\n" +
+                    "NovaProfile 2.8.5 Pro — original multi-profile browser.\n\n" +
                         "• Unlimited profiles, everything free, no billing, no trial.\n" +
                         "• Per-profile cookies, proxy, user-agent, language, " +
                         "screen, WebGL and Canvas settings.\n" +
@@ -666,6 +670,16 @@ private fun GoProfileRow(
         "SOCKS5" -> "SOCKS5 proxy"
         else -> profile.proxyMode
     }
+    // v2.8.5: the card shows the CONNECTED proxy's country — flag +
+    // name — plus the proxy itself (mode + host:port). A Direct profile
+    // shows no country flag at all instead of a misleading one.
+    val hasProxy = profile.proxyMode != "NONE" && profile.proxyHost.isNotBlank()
+    val cardFlag = if (hasProxy) flag else "🌐"
+    val cardLine = if (hasProxy) {
+        "$cardFlag  ${Profile.countrySettings(code).label} • $connection"
+    } else {
+        "$cardFlag  $connection"
+    }
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -693,10 +707,18 @@ private fun GoProfileRow(
                 )
                 Spacer(Modifier.height(2.dp))
                 Text(
-                    "$flag  $code • $connection",
+                    cardLine,
                     fontSize = 14.sp,
                     color = if (running) GoGreenDark else GoGreyText
                 )
+                if (hasProxy) {
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        "${profile.proxyMode} ${profile.proxyHost}:${profile.proxyPort}",
+                        fontSize = 13.sp,
+                        color = if (running) GoGreenDark else GoGreyText
+                    )
+                }
             }
             // v2.8.2: the grey Android icon and the 3-dot menu are gone
             // (user order). A running profile shows an Eye — tap it (or
