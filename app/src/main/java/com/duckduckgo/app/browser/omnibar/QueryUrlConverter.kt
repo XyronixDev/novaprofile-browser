@@ -23,8 +23,6 @@ import com.duckduckgo.app.browser.UriString
 import com.duckduckgo.app.browser.UriString.Companion.extractUrl
 import com.duckduckgo.app.di.AppCoroutineScope
 import com.duckduckgo.browser.feature.toggles.AndroidBrowserConfigFeature
-import com.duckduckgo.common.utils.AppUrl
-import com.duckduckgo.common.utils.AppUrl.Url
 import com.duckduckgo.common.utils.DispatcherProvider
 import com.duckduckgo.common.utils.UrlScheme.Companion.https
 import com.duckduckgo.common.utils.withScheme
@@ -107,16 +105,27 @@ class QueryUrlConverter @Inject constructor(
             return searchQuery
         }
 
+        // NovaProfile v2.8.3: searches run on Google, not DuckDuckGo.
+        // The DuckDuckGo results page itself carries DuckDuckGo branding
+        // (promo cards, "Protection. Privacy. Peace of mind." footer) and
+        // the omnibox shows the duck icon on duckduckgo.com URLs — both
+        // are gone once searches leave duckduckgo.com. DDG tracking
+        // params (atb/t) are not added to Google URLs.
         val uriBuilder = Uri.Builder()
             .scheme(https)
-            .appendQueryParameter(AppUrl.ParamKey.QUERY, searchQuery)
-            .authority(Url.HOST)
+            .authority("www.google.com")
+            .appendPath("search")
+            .appendQueryParameter("q", searchQuery)
 
         if (vertical != null && majorVerticals.contains(vertical)) {
-            uriBuilder.appendQueryParameter(AppUrl.ParamKey.VERTICAL_REWRITE, vertical)
+            when (vertical) {
+                "images" -> uriBuilder.appendQueryParameter("tbm", "isch")
+                "videos" -> uriBuilder.appendQueryParameter("tbm", "vid")
+                "news" -> uriBuilder.appendQueryParameter("tbm", "nws")
+                "shopping" -> uriBuilder.appendQueryParameter("tbm", "shop")
+            }
         }
 
-        requestRewriter.addCustomQueryParams(uriBuilder)
         return uriBuilder.build().toString()
     }
 
