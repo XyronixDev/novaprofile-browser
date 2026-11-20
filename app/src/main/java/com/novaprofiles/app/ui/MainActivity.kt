@@ -62,9 +62,7 @@ import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -77,6 +75,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.novaprofiles.app.util.ProxyEntry
 import com.novaprofiles.app.util.ProxyStore
 import kotlinx.coroutines.CoroutineScope
@@ -213,6 +213,9 @@ fun MainScreen(vm: ProfileViewModel) {
     var searchOpen by remember { mutableStateOf(false) }
     var labProfile by remember { mutableStateOf<Profile?>(null) }
     val proxyStore = remember { ProxyStore(ctx) }
+    // v2.8.6: the card shows the saved proxy's measured IP + speed — the
+    // entry is looked up by host:port, no Room change.
+    val savedProxies by proxyStore.proxies.collectAsState()
     val scope = rememberCoroutineScope()
 
     /** Sessions (v2.0 Pro): tell a running browser to stop itself. */
@@ -406,7 +409,12 @@ fun MainScreen(vm: ProfileViewModel) {
                     onShowAbout = { showAbout = true },
                     noticeProfileId = launchFailedId,
                     noticeText = proxyCheck,
-                    onDismissNotice = { vm.clearNotices(); launchFailedId = null }
+                    onDismissNotice = { vm.clearNotices(); launchFailedId = null },
+                    proxyEntryFor = { p ->
+                        savedProxies.firstOrNull {
+                            it.host == p.proxyHost && it.port == p.proxyPort
+                        }
+                    }
                 )
                 HomeTab.SETTINGS -> SettingsTab(
                     onExport = { exportLauncher.launch("novaprofile-profiles.zip") },
@@ -418,7 +426,8 @@ fun MainScreen(vm: ProfileViewModel) {
         }
     }
 
-    // Add/Edit profile sheet (v2.5) — overlays the home, like GoLogin.
+    // Add/Edit profile page (v2.5 sheet, v2.8.6 full page — the sheet
+    // blinked on downward swipes) — overlays the home, like GoLogin.
     // v2.7.2: the next auto-numbered name for a new profile — the max
     // existing "Profile N" + 1, so a deleted number is never reused.
     val nextProfileName = run {
@@ -454,7 +463,7 @@ fun MainScreen(vm: ProfileViewModel) {
             title = { Text("About NovaProfile") },
             text = {
                 Text(
-                    "NovaProfile 2.8.5 Pro — original multi-profile browser.\n\n" +
+                    "NovaProfile 2.8.6 Pro — original multi-profile browser.\n\n" +
                         "• Unlimited profiles, everything free, no billing, no trial.\n" +
                         "• Per-profile cookies, proxy, user-agent, language, " +
                         "screen, WebGL and Canvas settings.\n" +
@@ -551,7 +560,8 @@ private fun ProfilesTab(
     onShowAbout: () -> Unit,
     noticeProfileId: Long? = null,
     noticeText: String? = null,
-    onDismissNotice: () -> Unit = {}
+    onDismissNotice: () -> Unit = {},
+    proxyEntryFor: (Profile) -> ProxyEntry? = { null }
 ) {
     Column(Modifier.fillMaxSize()) {
         // Account row: green avatar + name + search.
@@ -644,7 +654,8 @@ private fun ProfilesTab(
                         onStop = { onStop(p) },
                         onEdit = { onEdit(p) },
                         notice = if (noticeProfileId == p.id) noticeText else null,
-                        onDismissNotice = onDismissNotice
+                        onDismissNotice = onDismissNotice,
+                        proxyEntry = proxyEntryFor(p)
                     )
                 }
             }
@@ -661,7 +672,8 @@ private fun GoProfileRow(
     onStop: () -> Unit,
     onEdit: () -> Unit,
     notice: String? = null,
-    onDismissNotice: () -> Unit = {}
+    onDismissNotice: () -> Unit = {},
+    proxyEntry: ProxyEntry? = null
 ) {
     val (flag, code) = countryOf(profile)
     val connection = when (profile.proxyMode) {
@@ -715,6 +727,18 @@ private fun GoProfileRow(
                     Spacer(Modifier.height(2.dp))
                     Text(
                         "${profile.proxyMode} ${profile.proxyHost}:${profile.proxyPort}",
+                        fontSize = 13.sp,
+                        color = if (running) GoGreenDark else GoGreyText
+                    )
+                }
+                // v2.8.6: proxy IP + speed + location on the card — the
+                // exit IP and latency come from the saved proxy's last
+                // check (refreshed on every run), the place from the
+                // profile's IP-matched timezone.
+                if (hasProxy && proxyEntry?.ok == true && proxyEntry.lastIp.isNotBlank()) {
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        "IP ${proxyEntry.lastIp} • ${proxyEntry.lastMs} ms • ${profile.timezone.substringAfter("/").replace("_", " ")}",
                         fontSize = 13.sp,
                         color = if (running) GoGreenDark else GoGreyText
                     )
@@ -943,19 +967,29 @@ fun EditorScreen(
     var extSection by remember { mutableStateOf<String?>(null) }
     var proxyStatus by remember { mutableStateOf<String?>(null) }
 
-    // v2.5: GoLogin-style bottom sheet instead of a full-screen form.
-    ModalBottomSheet(
+    // v2.8.6: full-screen page instead of a bottom sheet — a downward
+    // swipe on the sheet dragged the whole page down and snapped it back
+    // ("blinking up down"); on a page the swipe scrolls the form.
+    Dialog(
         onDismissRequest = onCancel,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            dismissOnBackPress = true,
+            dismissOnClickOutside = false
+        )
     ) {
-        Column(
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
+                .fillMaxSize()
                 .background(Color.White)
-                .verticalScroll(scroll)
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(scroll)
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
             when {
                 manualProxyOpen -> ManualProxyView(
                     proxyStore = proxyStore,
@@ -1085,6 +1119,7 @@ fun EditorScreen(
                     Spacer(Modifier.height(24.dp))
                 }
             }
+        }
         }
     }
 }
