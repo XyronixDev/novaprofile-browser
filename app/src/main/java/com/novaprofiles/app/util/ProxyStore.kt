@@ -7,8 +7,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
+import java.net.Authenticator
 import java.net.HttpURLConnection
 import java.net.InetSocketAddress
+import java.net.PasswordAuthentication
 import java.net.Proxy
 import java.net.URL
 import java.util.UUID
@@ -130,8 +132,27 @@ class ProxyStore(context: Context) {
 
     /** Live check through the proxy. Returns the entry with fresh results. */
     suspend fun check(entry: ProxyEntry): ProxyEntry = withContext(Dispatchers.IO) {
-        val started = System.currentTimeMillis()
+        // v2.8.4: SOCKS5 username/password auth needs java.net.Authenticator.
+        // The Proxy-Authorization header only authenticates HTTP proxies, so
+        // every authenticated SOCKS5 proxy (e.g. Webshare) failed this test
+        // even with the right host:port. Installed only for this check and
+        // cleared afterwards — nothing else in the app installs one, and the
+        // manual form tests sequentially, so the window is one test at a time.
+        val needsAuth = entry.user.isNotBlank()
+        if (needsAuth) {
+            Authenticator.setDefault(object : Authenticator() {
+                override fun getPasswordAuthentication(): PasswordAuthentication? {
+                    return if (requestingHost == entry.host) {
+                        PasswordAuthentication(entry.user, entry.pass.toCharArray())
+                    } else {
+                        null
+                    }
+                }
+            })
+        }
         try {
+            val started = System.currentTimeMillis()
+            try {
             val type = if (entry.mode == "SOCKS5") Proxy.Type.SOCKS else Proxy.Type.HTTP
             val proxy = Proxy(type, InetSocketAddress(entry.host, entry.port))
             val conn = URL("https://api.ipify.org").openConnection(proxy) as HttpURLConnection
@@ -188,6 +209,9 @@ class ProxyStore(context: Context) {
             )
         } catch (e: Exception) {
             entry.copy(ok = false, lastMs = System.currentTimeMillis() - started)
+        }
+        } finally {
+            if (needsAuth) Authenticator.setDefault(null)
         }
     }
 
