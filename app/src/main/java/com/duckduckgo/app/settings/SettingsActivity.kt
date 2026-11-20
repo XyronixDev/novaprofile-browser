@@ -310,6 +310,10 @@ class SettingsActivity : DuckDuckGoActivity() {
         // v2.8.2: About is removed too (user order) — the About page is
         // pure DuckDuckGo branding (duck logo, "Welcome to the Duck
         // Side!"), and this is NovaProfile now.
+        // v2.8.3: Private Search is removed too — its screen advertises
+        // "DuckDuckGo Private Search is your default search engine",
+        // and searches now run on Google.
+        viewsPrivacy.privateSearchSetting.gone()
         viewsOther.aboutSetting.gone()
         viewsPrivacy.emailSetting.gone()
         viewsPrivacy.vpnSetting.gone()
