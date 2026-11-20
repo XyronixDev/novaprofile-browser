@@ -171,8 +171,10 @@ fun parseManualIp(raw: String): Pair<String, Int>? {
         host = t.substring(0, lastColon).trim()
         port = t.substring(lastColon + 1).trim().toIntOrNull() ?: return null
     } else {
-        host = t
-        port = 8080
+        // v2.8.4: a bare IP used to silently default to port 8080, so a
+        // Webshare IP typed without its port was tested on a dead port and
+        // reported "did not answer". A port is now required — return null.
+        return null
     }
     if (host.isEmpty() || port !in 1..65535) return null
     return host to port
@@ -448,7 +450,7 @@ fun MainScreen(vm: ProfileViewModel) {
             title = { Text("About NovaProfile") },
             text = {
                 Text(
-                    "NovaProfile 2.8.3 Pro — original multi-profile browser.\n\n" +
+                    "NovaProfile 2.8.4 Pro — original multi-profile browser.\n\n" +
                         "• Unlimited profiles, everything free, no billing, no trial.\n" +
                         "• Per-profile cookies, proxy, user-agent, language, " +
                         "screen, WebGL and Canvas settings.\n" +
@@ -1173,16 +1175,44 @@ private fun ManualProxyView(
         }
         Text(
             "Type your proxy — it is tested before it is applied. " +
-                "Copy a fast IP:port from your proxy provider and paste it here.",
+                "Copy a fast IP:port from your proxy provider and paste it here. " +
+                "Port is required — a bare IP will not be tested.",
             color = GoGreyText
         )
         DropDownField("Protocol", listOf("Auto", "HTTP", "SOCKS5"), newProtocol) { newProtocol = it }
         OutlinedTextField(
-            value = newIp, onValueChange = { newIp = it; formError = null },
+            value = newIp, onValueChange = { typed ->
+                // v2.8.4: a pasted "host:port:user:pass" line (the format
+                // proxy providers ship) splits into the four fields instead
+                // of failing to parse. Never overwrites a user/pass the user
+                // already typed.
+                val four = Regex("""^([^:]+):(\d+):([^:]+):(.+)$""").matchEntire(typed.trim())
+                if (four != null && newUser.isBlank() && newPass.isBlank()) {
+                    newIp = "${four.groupValues[1]}:${four.groupValues[2]}"
+                    newUser = four.groupValues[3]
+                    newPass = four.groupValues[4]
+                } else {
+                    newIp = typed
+                }
+                formError = null
+            },
             label = { Text("IP") },
             placeholder = { Text("198.165.0.0:8080") },
             modifier = Modifier.fillMaxWidth(), singleLine = true
         )
+        // v2.8.4: show exactly what will be tested, so a missing port can
+        // never silently test the wrong port again.
+        val parsedIp = parseManualIp(newIp)
+        if (newIp.isNotBlank()) {
+            if (parsedIp != null) {
+                Text("Will test ${parsedIp.first}:${parsedIp.second}", color = GoGreyText)
+            } else {
+                Text(
+                    "Port is required — e.g. 198.23.243.226:6361",
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+        }
         OutlinedTextField(
             value = newUser, onValueChange = { newUser = it },
             label = { Text("Username") },
