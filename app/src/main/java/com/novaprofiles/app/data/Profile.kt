@@ -152,6 +152,7 @@ data class Profile(
             "BR" -> CountrySettings("BR", "Brazil", "America/Sao_Paulo", "pt-BR")
             "IT" -> CountrySettings("IT", "Italy", "Europe/Rome", "it-IT")
             "ES" -> CountrySettings("ES", "Spain", "Europe/Madrid", "es-ES")
+            "PL" -> CountrySettings("PL", "Poland", "Europe/Warsaw", "pl-PL")
             "SE" -> CountrySettings("SE", "Sweden", "Europe/Stockholm", "sv-SE")
             "CH" -> CountrySettings("CH", "Switzerland", "Europe/Zurich", "de-CH")
             "IE" -> CountrySettings("IE", "Ireland", "Europe/Dublin", "en-IE")
