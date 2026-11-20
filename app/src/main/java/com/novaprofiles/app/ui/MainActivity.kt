@@ -34,6 +34,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -74,9 +75,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.DialogWindowProvider
 import com.novaprofiles.app.util.ProxyEntry
 import com.novaprofiles.app.util.ProxyStore
 import kotlinx.coroutines.CoroutineScope
@@ -87,11 +91,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.ViewModelProvider
 import com.novaprofiles.app.data.Profile
 import com.novaprofiles.app.util.ProxyHelper
@@ -157,31 +164,6 @@ fun countryOf(profile: Profile): Pair<String, String> {
         profile.language.startsWith("ar") -> "🇸🇦" to "SA"
         else -> "🇺🇸" to "US"
     }
-}
-
-/**
- * v2.7.3: parse the manual Add-proxy IP field ("198.165.0.0:8080").
- * A port is required since v2.8.4 — a bare host returns null. Returns
- * null when the field cannot be a proxy address; the Add button stays
- * disabled then.
- */
-fun parseManualIp(raw: String): Pair<String, Int>? {
-    val t = raw.trim()
-    if (t.isEmpty()) return null
-    val lastColon = t.lastIndexOf(':')
-    val host: String
-    val port: Int
-    if (lastColon > 0) {
-        host = t.substring(0, lastColon).trim()
-        port = t.substring(lastColon + 1).trim().toIntOrNull() ?: return null
-    } else {
-        // v2.8.4: a bare IP used to silently default to port 8080, so a
-        // Webshare IP typed without its port was tested on a dead port and
-        // reported "did not answer". A port is now required — return null.
-        return null
-    }
-    if (host.isEmpty() || port !in 1..65535) return null
-    return host to port
 }
 
 private enum class HomeTab { PROFILES, SETTINGS }
@@ -463,7 +445,7 @@ fun MainScreen(vm: ProfileViewModel) {
             title = { Text("About NovaProfile") },
             text = {
                 Text(
-                    "NovaProfile 2.8.6 Pro — original multi-profile browser.\n\n" +
+                    "NovaProfile 2.8.7 Pro — original multi-profile browser.\n\n" +
                         "• Unlimited profiles, everything free, no billing, no trial.\n" +
                         "• Per-profile cookies, proxy, user-agent, language, " +
                         "screen, WebGL and Canvas settings.\n" +
@@ -853,14 +835,24 @@ private fun SettingsTab(
     onAbout: () -> Unit,
     notice: String?
 ) {
+    // v2.8.7: the content sits in the middle of the page, vertically and
+    // horizontally (user order) — it used to hug the top, leaving a big
+    // empty space below.
     Column(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text("Settings", fontWeight = FontWeight.Bold, fontSize = 20.sp)
+        Text(
+            "Settings",
+            fontWeight = FontWeight.Bold,
+            fontSize = 20.sp,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth()
+        )
         Button(
             onClick = onExport,
             colors = ButtonDefaults.buttonColors(containerColor = GoGreen),
@@ -890,13 +882,22 @@ private fun SettingsTab(
             Spacer(Modifier.width(8.dp))
             Text("About NovaProfile")
         }
-        notice?.let { Text(it, color = GoGreyText) }
+        notice?.let {
+            Text(
+                it,
+                color = GoGreyText,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
         Spacer(Modifier.height(8.dp))
         Text(
             "Fingerprint protection is JS-level inside the system WebView. " +
                 "It is NOT a Chromium fork — advanced fingerprint tests can " +
                 "still detect the real device.",
-            color = GoGreyText
+            color = GoGreyText,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth()
         )
     }
 }
@@ -978,6 +979,16 @@ fun EditorScreen(
             dismissOnClickOutside = false
         )
     ) {
+        // v2.8.7: a Dialog has its own window — its status bar showed grey
+        // (transparent over the dimmed home). Force it white with dark
+        // icons, like the activity's own bar.
+        val dialogWindow = (LocalView.current.parent as? DialogWindowProvider)?.window
+        SideEffect {
+            dialogWindow?.let {
+                it.statusBarColor = android.graphics.Color.WHITE
+                WindowInsetsControllerCompat(it, it.decorView).isAppearanceLightStatusBars = true
+            }
+        }
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -1205,7 +1216,15 @@ private fun ManualProxyView(
     var newIp by remember {
         mutableStateOf(
             if (current.proxyMode == "NONE" || current.proxyHost.isBlank()) ""
-            else "${current.proxyHost}:${current.proxyPort}"
+            else current.proxyHost
+        )
+    }
+    // v2.8.7: Port is its own field (numeric keyboard) — the user could
+    // not find where the port goes when it hid inside the IP field.
+    var newPort by remember {
+        mutableStateOf(
+            if (current.proxyMode == "NONE" || current.proxyHost.isBlank()) ""
+            else current.proxyPort.toString()
         )
     }
     var newUser by remember { mutableStateOf(current.proxyUser) }
@@ -1232,40 +1251,52 @@ private fun ManualProxyView(
         }
         Text(
             "Type your proxy — it is tested before it is applied. " +
-                "Copy a fast IP:port from your proxy provider and paste it here. " +
-                "Port is required — a bare IP will not be tested.",
+                "IP and port are separate fields. Paste a full " +
+                "host:port:user:pass line and all four fields fill themselves.",
             color = GoGreyText
         )
         DropDownField("Protocol", listOf("Auto", "HTTP", "SOCKS5"), newProtocol) { newProtocol = it }
         OutlinedTextField(
             value = newIp, onValueChange = { typed ->
-                // v2.8.4: a pasted "host:port:user:pass" line (the format
-                // proxy providers ship) splits into the four fields instead
-                // of failing to parse. Never overwrites a user/pass the user
-                // already typed.
+                // v2.8.7: a pasted line splits into the separate fields —
+                // "host:port:user:pass" fills all four, "host:port" fills
+                // IP + Port. Never overwrites a user/pass already typed.
                 val four = Regex("""^([^:]+):(\d+):([^:]+):(.+)$""").matchEntire(typed.trim())
-                if (four != null && newUser.isBlank() && newPass.isBlank()) {
-                    newIp = "${four.groupValues[1]}:${four.groupValues[2]}"
-                    newUser = four.groupValues[3]
-                    newPass = four.groupValues[4]
-                } else {
-                    newIp = typed
+                val two = Regex("""^([^:]+):(\d+)$""").matchEntire(typed.trim())
+                when {
+                    four != null && newUser.isBlank() && newPass.isBlank() -> {
+                        newIp = four.groupValues[1]
+                        newPort = four.groupValues[2]
+                        newUser = four.groupValues[3]
+                        newPass = four.groupValues[4]
+                    }
+                    two != null -> {
+                        newIp = two.groupValues[1]
+                        newPort = two.groupValues[2]
+                    }
+                    else -> newIp = typed
                 }
                 formError = null
             },
             label = { Text("IP") },
-            placeholder = { Text("198.165.0.0:8080") },
+            placeholder = { Text("198.23.243.226") },
             modifier = Modifier.fillMaxWidth(), singleLine = true
         )
-        // v2.8.4: show exactly what will be tested, so a missing port can
-        // never silently test the wrong port again.
-        val parsedIp = parseManualIp(newIp)
-        if (newIp.isNotBlank()) {
-            if (parsedIp != null) {
-                Text("Will test ${parsedIp.first}:${parsedIp.second}", color = GoGreyText)
+        OutlinedTextField(
+            value = newPort, onValueChange = { newPort = it.filter { c -> c.isDigit() }.take(5) },
+            label = { Text("Port") },
+            placeholder = { Text("6361") },
+            modifier = Modifier.fillMaxWidth(), singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+        )
+        // v2.8.7: show exactly what will be tested, from the two fields.
+        val portNum = newPort.toIntOrNull()
+        if (newIp.isNotBlank() || newPort.isNotBlank()) {
+            if (newIp.trim().isNotBlank() && portNum != null && portNum in 1..65535) {
+                Text("Will test ${newIp.trim()}:$portNum", color = GoGreyText)
             } else {
                 Text(
-                    "Port is required — e.g. 198.23.243.226:6361",
+                    "Port is required — e.g. 6361",
                     color = MaterialTheme.colorScheme.error
                 )
             }
@@ -1300,8 +1331,9 @@ private fun ManualProxyView(
         formError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         Button(
             onClick = {
-                val parsed = parseManualIp(newIp) ?: return@Button
-                val (host, port) = parsed
+                val host = newIp.substringBefore(":").trim()
+                val port = newPort.toIntOrNull() ?: return@Button
+                if (host.isBlank() || port !in 1..65535) return@Button
                 val name = newName.trim().ifBlank { suggestedName }
                 testing = true
                 formError = null
@@ -1325,7 +1357,8 @@ private fun ManualProxyView(
                     }
                 }
             },
-            enabled = !testing && parseManualIp(newIp) != null,
+            enabled = !testing && newIp.trim().isNotBlank() &&
+                (newPort.toIntOrNull() ?: 0) in 1..65535,
             colors = ButtonDefaults.buttonColors(containerColor = GoGreen),
             modifier = Modifier.fillMaxWidth()
         ) { Text(if (testing) "Testing…" else "Test & apply proxy") }
