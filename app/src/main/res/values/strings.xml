@@ -17,7 +17,7 @@
 <!-- smartling.instruction_attributes = instruction -->
 <resources xmlns:tools="http://schemas.android.com/tools">
     <string name="appName" translatable="false">NovaProfile</string>
-    <string name="appDescription" translatable="false">DuckDuckGo</string>
+    <string name="appDescription" translatable="false">NovaProfile</string>
     <string name="duckDuckGoLogoDescription">DuckDuckGo logo</string>
     <string name="duckDuckGoProtectionPrivacyPeaceTagLine">Protection. Privacy. Peace of Mind.</string>
     <string name="yes">Yes</string>
@@ -93,7 +93,7 @@
     <!-- Opening external apps -->
     <string name="openExternalApp">Open External App</string>
     <string name="launchingExternalApp">Open in another app</string>
-    <string name="confirmOpenExternalApp">Would you like to leave DuckDuckGo to view this content?</string>
+    <string name="confirmOpenExternalApp">Would you like to leave NovaProfile to view this content?</string>
     <string name="unableToOpenLink">Unable to open this type of link</string>
 
     <!-- Tabs -->
@@ -296,7 +296,7 @@
     <string name="brokenSiteProtectionsOnBannerMessage">Turning protections OFF might help.</string>
 
     <!-- Widget -->
-    <string name="searchWidgetTextHint">Search DuckDuckGo</string>
+    <string name="searchWidgetTextHint">Search NovaProfile</string>
 
     <!-- Favorites widget -->
     <string name="addFavoriteMenuTitleHighlighted">👋 Add Favorite</string>
@@ -380,7 +380,7 @@
     <string name="authenticationDialogPasswordHint">Password</string>
 
     <!-- User-facing label for when a user selects text and might want to search for that text -->
-    <string name="systemTextSearchMessage">Search DuckDuckGo</string>
+    <string name="systemTextSearchMessage">Search NovaProfile</string>
 
     <!-- Webview Recovery -->
     <string name="crashedWebViewErrorMessage">"The webpage could not be displayed."</string>
