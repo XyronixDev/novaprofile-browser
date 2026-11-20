@@ -445,7 +445,7 @@ fun MainScreen(vm: ProfileViewModel) {
             title = { Text("About NovaProfile") },
             text = {
                 Text(
-                    "NovaProfile 2.8.7 Pro — original multi-profile browser.\n\n" +
+                    "NovaProfile 2.8.8 Pro — original multi-profile browser.\n\n" +
                         "• Unlimited profiles, everything free, no billing, no trial.\n" +
                         "• Per-profile cookies, proxy, user-agent, language, " +
                         "screen, WebGL and Canvas settings.\n" +
@@ -1194,8 +1194,8 @@ private fun SwitchRow(label: String, checked: Boolean, onCheckedChange: (Boolean
 /**
  * Manual proxy form (v2.8.3): the country picker is gone (user order)
  * — the user types the proxy themselves. Protocol (Auto tries HTTP
- * first, then SOCKS5), one IP field (host:port, bare host defaults to
- * 8080), login, password, proxy name. The proxy is TESTED through
+ * first, then SOCKS5), IP + Port as separate fields, login, password.
+ * The proxy is TESTED through
  * ipify before it is applied to the draft, so a dead proxy can never
  * be saved onto a profile; the live check also resolves the proxy IP's
  * country + timezone for the card flag and the timezone auto-match.
@@ -1229,7 +1229,6 @@ private fun ManualProxyView(
     }
     var newUser by remember { mutableStateOf(current.proxyUser) }
     var newPass by remember { mutableStateOf(current.proxyPass) }
-    var newName by remember { mutableStateOf("") }
     var showPass by remember { mutableStateOf(false) }
     var testing by remember { mutableStateOf(false) }
     var formError by remember { mutableStateOf<String?>(null) }
@@ -1322,19 +1321,16 @@ private fun ManualProxyView(
                 }
             }
         )
-        OutlinedTextField(
-            value = newName, onValueChange = { newName = it },
-            label = { Text("Proxy name") },
-            placeholder = { Text(suggestedName) },
-            modifier = Modifier.fillMaxWidth(), singleLine = true
-        )
         formError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         Button(
             onClick = {
                 val host = newIp.substringBefore(":").trim()
                 val port = newPort.toIntOrNull() ?: return@Button
                 if (host.isBlank() || port !in 1..65535) return@Button
-                val name = newName.trim().ifBlank { suggestedName }
+                // v2.8.8: no name field anymore — the saved entry is just
+                // auto-numbered ("Myproxy #N"); the name is never shown
+                // anywhere since the Proxies tab is gone.
+                val name = suggestedName
                 testing = true
                 formError = null
                 scope.launch {
