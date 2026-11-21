@@ -103,11 +103,8 @@ class ConfigurableNewTabPageView @JvmOverloads constructor(
             } else {
                 this.show()
                 onHasContent?.invoke(true)
-                if (viewState.showDax) {
-                    binding.ddgLogo.show()
-                } else {
-                    binding.ddgLogo.gone()
-                }
+                // NovaProfile v2.8.14: no DuckDuckGo logo, ever.
+                binding.ddgLogo.gone()
             }
 
             if (viewState.sections.isEmpty()) {
