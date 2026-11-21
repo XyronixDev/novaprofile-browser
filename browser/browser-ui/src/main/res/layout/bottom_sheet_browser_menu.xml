@@ -85,15 +85,18 @@
                     app:menuActionLabel="@string/browserMenuNewTab"
                     app:menuActionSrc="@drawable/ic_add_24" />
 
+                <!-- NovaProfile v2.8.14: the Duck.ai slot is now Home —
+                     one tap back to the NovaProfile home, no walking
+                     back through every open tab/page. -->
                 <com.duckduckgo.common.ui.view.MenuActionButtonView
-                    android:id="@+id/newDuckChatMenuItem"
+                    android:id="@+id/homeMenuItem"
                     android:layout_width="0dp"
                     android:layout_height="match_parent"
                     android:layout_weight="1"
                     android:layout_marginStart="@dimen/keyline_0"
                     android:layout_marginEnd="@dimen/keyline_0"
-                    app:menuActionLabel="@string/browserMenuDuckChat"
-                    app:menuActionSrc="@drawable/ic_duck_ai_menu_logo_24" />
+                    app:menuActionLabel="@string/browserMenuHome"
+                    app:menuActionSrc="@drawable/ic_home_24" />
 
                 <com.duckduckgo.common.ui.view.MenuActionButtonView
                     android:id="@+id/settingsMenuItem"
