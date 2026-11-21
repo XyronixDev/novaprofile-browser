@@ -46,6 +46,8 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Stop
@@ -286,49 +288,79 @@ fun MainScreen(vm: ProfileViewModel, autoRunProfileId: Long? = null, autoRunQuer
         // is New York — a 3-hour mismatch whoer deducts
         // for. On lookup failure, launch with the stored
         // values instead of blocking.
+        // v2.8.18: skip the re-sync when this exact proxy was already
+        // resolved and the profile already carries its location. The
+        // editor test does that seconds before Save, so re-resolving on
+        // every Play tap added up to 12s of blank spinner (6s connect
+        // + 6s read through a slow proxy) for zero benefit — the user
+        // read it, reasonably, as "browser never opens". Only re-sync
+        // when the saved entry is untested or its timezone no longer
+        // matches the profile (the proxy rotated to a new city).
+        val savedEntry = if (p.proxyMode != "NONE") {
+            proxyStore.proxies.value.firstOrNull {
+                it.host == p.proxyHost && it.port == p.proxyPort
+            }
+        } else null
+        val alreadySynced = savedEntry != null && savedEntry.ok &&
+            savedEntry.lastIp.isNotBlank() &&
+            savedEntry.lastTimezone.isNotBlank() &&
+            (p.timezoneMode != "IP" || savedEntry.lastTimezone == p.timezone)
         if (p.proxyMode != "NONE" &&
-            (p.timezoneMode == "IP" || p.geoMode == "IP")
+            (p.timezoneMode == "IP" || p.geoMode == "IP") && !alreadySynced
         ) {
             syncingIds = syncingIds + p.id
             scope.launch {
-                val entry = ProxyEntry(
-                    name = p.name,
-                    mode = p.proxyMode, host = p.proxyHost,
-                    port = p.proxyPort, user = p.proxyUser,
-                    pass = p.proxyPass
-                )
-                val loc = proxyStore.resolveLocation(entry)
-                // v2.8.2: launch with the FRESH profile —
-                // the old code saved the re-synced timezone
-                // to Room but launched the browser with the
-                // STALE profile, so whoer saw a timezone
-                // mismatch (78% instead of ~90%).
-                var toLaunch = p
-                if (loc != null) {
-                    val updated = p.copy(
-                        timezone = if (p.timezoneMode == "IP") loc.timezone else p.timezone,
-                        latitude = if (p.geoMode == "IP" && loc.lat != 0.0) loc.lat else p.latitude,
-                        longitude = if (p.geoMode == "IP" && loc.lon != 0.0) loc.lon else p.longitude
+                try {
+                    val entry = ProxyEntry(
+                        name = p.name,
+                        mode = p.proxyMode, host = p.proxyHost,
+                        port = p.proxyPort, user = p.proxyUser,
+                        pass = p.proxyPass
                     )
-                    vm.updateNow(updated)
-                    toLaunch = updated
-                    val saved = proxyStore.proxies.value.firstOrNull {
-                        it.host == p.proxyHost && it.port == p.proxyPort
-                    }
-                    if (saved != null) {
-                        proxyStore.update(
-                            saved.copy(
-                                lastIp = loc.ip, lastTimezone = loc.timezone,
-                                lastLat = loc.lat, lastLon = loc.lon, ok = true
-                            )
+                    val loc = proxyStore.resolveLocation(entry)
+                    // v2.8.2: launch with the FRESH profile — the old
+                    // code saved the re-synced timezone to Room but
+                    // launched the browser with the STALE profile, so
+                    // whoer saw a timezone mismatch (78% instead of
+                    // ~90%).
+                    var toLaunch = p
+                    if (loc != null) {
+                        val updated = p.copy(
+                            timezone = if (p.timezoneMode == "IP") loc.timezone else p.timezone,
+                            latitude = if (p.geoMode == "IP" && loc.lat != 0.0) loc.lat else p.latitude,
+                            longitude = if (p.geoMode == "IP" && loc.lon != 0.0) loc.lon else p.longitude
                         )
+                        vm.updateNow(updated)
+                        toLaunch = updated
+                        val saved = proxyStore.proxies.value.firstOrNull {
+                            it.host == p.proxyHost && it.port == p.proxyPort
+                        }
+                        if (saved != null) {
+                            proxyStore.update(
+                                saved.copy(
+                                    lastIp = loc.ip, lastTimezone = loc.timezone,
+                                    lastLat = loc.lat, lastLon = loc.lon, ok = true
+                                )
+                            )
+                        }
                     }
-                }
-                val launched = launchProfile(toLaunch, query)
-                syncingIds = syncingIds - p.id
-                if (launched) {
-                    runningIds = runningIds + p.id
-                    vm.markRun(p.id)
+                    if (launchProfile(toLaunch, query)) {
+                        runningIds = runningIds + p.id
+                        vm.markRun(p.id)
+                    }
+                } catch (e: Exception) {
+                    // v2.8.18: never strand the card on a spinner — any
+                    // failure in the sync launches with the stored
+                    // values instead of dying mid-sync.
+                    try {
+                        if (launchProfile(p, query)) {
+                            runningIds = runningIds + p.id
+                            vm.markRun(p.id)
+                        }
+                    } catch (e2: Exception) {
+                    }
+                } finally {
+                    syncingIds = syncingIds - p.id
                 }
             }
         } else {
@@ -510,7 +542,7 @@ fun MainScreen(vm: ProfileViewModel, autoRunProfileId: Long? = null, autoRunQuer
             title = { Text("About NovaProfile") },
             text = {
                 Text(
-                    "NovaProfile 2.8.17 Pro — original multi-profile browser.\n\n" +
+                    "NovaProfile 2.8.18 Pro — original multi-profile browser.\n\n" +
                         "• Unlimited profiles, everything free, no billing, no trial.\n" +
                         "• Per-profile cookies, proxy, user-agent, language, " +
                         "screen, WebGL and Canvas settings.\n" +
@@ -631,13 +663,21 @@ private fun ProfilesTab(
             // v2.7.2: home header is just the name (+ "Connected" while
             // a profile runs) — search icon, info icon and the search
             // field are removed (user order); About stays in Settings.
-            Text(
-                "NovaProfile",
-                fontWeight = FontWeight.Bold,
-                fontSize = 20.sp,
-                maxLines = 1,
-                modifier = Modifier.weight(1f)
-            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    "NovaProfile",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 20.sp,
+                    maxLines = 1
+                )
+                // v2.8.18: profile count under the app name, as asked.
+                Text(
+                    "Profile: ${profiles.size}",
+                    color = GoGreyText,
+                    fontSize = 13.sp,
+                    maxLines = 1
+                )
+            }
             // v2.3: GoLogin shows "Connected" up here when a profile runs.
             if (runningIds.isNotEmpty()) {
                 Text("Connected", color = GoGreyText, fontSize = 14.sp)
@@ -1316,6 +1356,12 @@ private fun ManualProxyView(
     var newPass by remember { mutableStateOf(current.proxyPass) }
     var showPass by remember { mutableStateOf(false) }
     var testing by remember { mutableStateOf(false) }
+    // v2.8.18: which saved row is being tested right now (its
+    // host:port), so the row itself can show "Testing…".
+    var testingKey by remember { mutableStateOf<String?>(null) }
+    // v2.8.18: manual typing is behind a show/hide row, collapsed
+    // by default — import + the saved list are the main way in.
+    var manualExpanded by remember { mutableStateOf(false) }
     var formError by remember { mutableStateOf<String?>(null) }
 
     // Next auto name ("Myproxy #1", "#2"…) when the name is blank.
@@ -1326,6 +1372,26 @@ private fun ManualProxyView(
         "Myproxy #${max + 1}"
     }
 
+    // v2.8.18: ONE test path for the Test button AND a saved-row tap —
+    // test the entry (SOCKS5 only) and apply it on success. Used to
+    // live inline in the Test button only; the row tap filled the form
+    // and left the user one more tap away from a working proxy.
+    fun testEntry(base: ProxyEntry) {
+        testing = true
+        testingKey = "${base.host}:${base.port}"
+        formError = null
+        scope.launch {
+            val attempt = proxyStore.check(base.copy(mode = "SOCKS5"))
+            testing = false
+            testingKey = null
+            if (attempt.ok) {
+                onApplied(attempt)
+            } else {
+                formError = "Proxy did not answer — check the IP:port and login, then try again."
+            }
+        }
+    }
+
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) {
@@ -1334,11 +1400,9 @@ private fun ManualProxyView(
             Text("Add proxy", fontWeight = FontWeight.Bold, fontSize = 20.sp)
         }
         Text(
-            "Type your proxy — it is tested before it is applied. " +
-                "IP and port are separate fields. Paste a full " +
-                "host:port:user:pass line and all four fields fill themselves. " +
-                "Protocol is SOCKS5 — permanently. Or import a .txt file " +
-                "with one host:port:user:pass line per proxy.",
+            "Import a .txt file, or tap a saved proxy below — it is " +
+                "tested and applied at once. Or add one manually. " +
+                "Protocol is SOCKS5 — permanently.",
             color = GoGreyText
         )
         OutlinedButton(
@@ -1346,6 +1410,28 @@ private fun ManualProxyView(
             modifier = Modifier.fillMaxWidth()
         ) { Text("Import proxies from file (.txt)") }
         importResult?.let { Text(it, color = GoGreyText) }
+        // v2.8.18: manual typing is behind a show/hide row (collapsed
+        // by default) — import + the saved list are the main way in.
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(8.dp))
+                .clickable { manualExpanded = !manualExpanded }
+                .padding(vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                "Add proxy manually",
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp,
+                modifier = Modifier.weight(1f)
+            )
+            Icon(
+                if (manualExpanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+                contentDescription = if (manualExpanded) "Hide manual form" else "Show manual form"
+            )
+        }
+        if (manualExpanded) {
         OutlinedTextField(
             value = newIp, onValueChange = { typed ->
                 // v2.8.7: a pasted line splits into the separate fields —
@@ -1421,46 +1507,30 @@ private fun ManualProxyView(
                 // v2.8.8: no name field anymore — the saved entry is just
                 // auto-numbered ("Myproxy #N"); the name is never shown
                 // anywhere since the Proxies tab is gone.
-                val name = suggestedName
-                testing = true
-                formError = null
-                scope.launch {
-                    val base = ProxyEntry(
-                        name = name, mode = "HTTP", host = host, port = port,
-                        user = newUser.trim(), pass = newPass
+                testEntry(
+                    ProxyEntry(
+                        name = suggestedName, mode = "HTTP", host = host,
+                        port = port, user = newUser.trim(), pass = newPass
                     )
-                    // v2.8.15: SOCKS5 permanently, only SOCKS5 is ever
-                    // tested — the user ordered one protocol, SOCKS5.
-                    val modes = listOf("SOCKS5")
-                    var checked: ProxyEntry? = null
-                    for (m in modes) {
-                        val attempt = proxyStore.check(base.copy(mode = m))
-                        checked = attempt
-                        if (attempt.ok) break
-                    }
-                    testing = false
-                    if (checked != null && checked.ok) {
-                        onApplied(checked)
-                    } else {
-                        formError = "Proxy did not answer — check the IP:port and login, then try again."
-                    }
-                }
+                )
             },
             enabled = !testing && newIp.trim().isNotBlank() &&
                 (newPort.toIntOrNull() ?: 0) in 1..65535,
             colors = ButtonDefaults.buttonColors(containerColor = GoGreen),
             modifier = Modifier.fillMaxWidth()
         ) { Text(if (testing) "Testing…" else "Test & apply proxy") }
+        }
         TextButton(
             onClick = onDirect,
             modifier = Modifier.fillMaxWidth()
         ) { Text("Use no proxy (Direct)") }
-        // v2.8.16: every saved proxy, with its live-check detail — tap
-        // one to fill the form above, bin to delete it. Manual typing
-        // stays as the option above; this list is the shortcut.
+        // v2.8.16: every saved proxy, with its live-check detail.
+        // v2.8.18: tap one to test & apply it AT ONCE (it fills the
+        // form too) — bin to delete it. Manual typing stays behind
+        // its show/hide row above; this list is the shortcut.
         if (savedProxies.isNotEmpty()) {
             Text(
-                "Saved proxies (${savedProxies.size}) — tap one to fill the form",
+                "Saved proxies (${savedProxies.size}) — tap one to test & apply it at once",
                 fontWeight = FontWeight.Bold, fontSize = 16.sp
             )
             savedProxies.forEach { entry ->
@@ -1475,6 +1545,10 @@ private fun ManualProxyView(
                             newUser = entry.user
                             newPass = entry.pass
                             formError = null
+                            // v2.8.18: tap tests AND applies at once —
+                            // filling the form alone left the user one
+                            // more tap away from a working proxy.
+                            testEntry(entry)
                         }
                         .padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -1491,9 +1565,14 @@ private fun ManualProxyView(
                             entry.country
                         }
                         Text(
-                            if (countryLabel.isBlank()) "Not tested yet" else countryLabel,
+                            if (countryLabel.isBlank()) "Not tested yet — tap to test & apply"
+                            else if (countryCode.length == 2) "${Profile.flagEmoji(countryCode)} $countryLabel"
+                            else countryLabel,
                             color = GoGreyText
                         )
+                        if (testingKey == "${entry.host}:${entry.port}") {
+                            Text("Testing…", color = GoGreyText)
+                        }
                         if (entry.ok && entry.lastIp.isNotBlank()) {
                             Text("IP ${entry.lastIp} • ${entry.lastMs} ms", color = GoGreyText)
                         }
