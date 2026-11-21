@@ -66,6 +66,11 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
         repo.update(profile)
     }
 
+    // v2.8.19: direct load by id for the post-restart auto-run — the
+    // profiles Flow starts empty on a fresh process and only emits
+    // after Room's first query.
+    suspend fun getProfile(id: Long): Profile? = repo.getById(id)
+
     fun duplicate(profile: Profile) = viewModelScope.launch {
         repo.duplicate(profile)
     }
