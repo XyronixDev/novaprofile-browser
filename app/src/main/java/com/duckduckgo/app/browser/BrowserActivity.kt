@@ -709,10 +709,24 @@ open class BrowserActivity : DuckDuckGoActivity() {
         if (dataClearer.dataClearerState.value == ApplicationClearDataState.FINISHED) {
             logcat(INFO) { "Automatic data clearer has finished, so processing intent now" }
             launchNewSearchOrQuery(intent)
+            reloadCurrentTabIfRequested(intent)
         } else {
             logcat(INFO) { "Automatic data clearer not yet finished, so deferring processing of intent" }
             lastIntent = intent
             dataClearer.deferredQuery = intent.intentText
+        }
+    }
+
+    /**
+     * NovaProfile v2.8.13: when the home screen returns to the browser
+     * (Eye/Play), re-load the current tab under the RUNNING profile —
+     * the tab may have been loaded under a different profile's proxy
+     * (whoer kept showing Profile 1's US IP after Profile 2's UK proxy
+     * was run). Same page, re-fetched through the current profile.
+     */
+    private fun reloadCurrentTabIfRequested(intent: Intent?) {
+        if (intent?.getBooleanExtra(NovaProfileSession.EXTRA_RELOAD_TAB, false) == true) {
+            currentTab?.reloadTab()
         }
     }
 
@@ -1509,6 +1523,7 @@ open class BrowserActivity : DuckDuckGoActivity() {
             if (lastIntent != null) {
                 logcat(INFO) { "There was a deferred intent to process; handling now" }
                 launchNewSearchOrQuery(lastIntent)
+                reloadCurrentTabIfRequested(lastIntent)
                 lastIntent = null
                 return
             }
