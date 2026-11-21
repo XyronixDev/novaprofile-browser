@@ -55,6 +55,7 @@ import com.duckduckgo.request.filterer.api.RequestFilterer
 import com.duckduckgo.request.interception.api.RequestBlocklist
 import com.duckduckgo.tracker.detection.api.TrackerDetector
 import com.duckduckgo.user.agent.api.UserAgentProvider
+import com.novaprofiles.app.util.NovaProfileSession
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -420,7 +421,13 @@ class WebViewRequestInterceptor(
             if (requestWasInTheStack(url, webView)) return null
             val desktopSiteEnabled = webViewClientListener?.isDesktopSiteEnabled(url.toString()) == true
             val currentAgent = withContext(dispatchers.main()) { webView.settings.userAgentString }
-            val newAgent = userAgentProvider.userAgent(url.toString(), desktopSiteEnabled)
+            // NovaProfile v2.8.13: keep the header UA on the profile UA
+            // (see BrowserTabFragment) — this interceptor re-applies DDG's
+            // UA on every main-frame GET. Desktop-site requests keep DDG's
+            // desktop UA. Returns null when already on the target UA so
+            // the caller does not reload in a loop.
+            val baseAgent = userAgentProvider.userAgent(url.toString(), desktopSiteEnabled)
+            val newAgent = if (!desktopSiteEnabled) NovaProfileSession.profileUserAgent() ?: baseAgent else baseAgent
             if (currentAgent != newAgent) {
                 newAgent
             } else {
