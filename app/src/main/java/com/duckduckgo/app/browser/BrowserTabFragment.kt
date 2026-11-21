@@ -386,6 +386,7 @@ import com.duckduckgo.voice.api.VoiceSearchLauncher
 import com.duckduckgo.voice.api.VoiceSearchLauncher.Source.BROWSER
 import com.duckduckgo.voice.api.VoiceSearchLauncher.VoiceSearchMode
 import com.novaprofiles.app.ui.MainActivity
+import com.novaprofiles.app.util.ClientHints
 import com.novaprofiles.app.util.NovaProfileSession
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
@@ -2590,6 +2591,7 @@ class BrowserTabFragment :
         headers: Map<String, String>,
     ) {
         clientBrandHintProvider.setOn(webView?.safeSettings, url)
+        ClientHints.alignToProfile(webView?.safeSettings)
         hideKeyboard()
         omnibar.hideFindInPage()
         webViewClient.onUserInitiatedLoad()
@@ -2797,6 +2799,7 @@ class BrowserTabFragment :
                 val navList = webView?.safeCopyBackForwardList()
                 val currentIndex = navList?.currentIndex ?: 0
                 clientBrandHintProvider.setOn(webView?.safeSettings, navList?.getItemAtIndex(currentIndex - 1)?.url.toString())
+                ClientHints.alignToProfile(webView?.safeSettings)
                 viewModel.refreshBrowserError()
                 webViewClient.onUserInitiatedLoad()
                 webView?.goBackOrForward(-it.steps)
@@ -2807,6 +2810,7 @@ class BrowserTabFragment :
                 val navList = webView?.safeCopyBackForwardList()
                 val currentIndex = navList?.currentIndex ?: 0
                 clientBrandHintProvider.setOn(webView?.safeSettings, navList?.getItemAtIndex(currentIndex + 1)?.url.toString())
+                ClientHints.alignToProfile(webView?.safeSettings)
                 viewModel.refreshBrowserError()
                 webViewClient.onUserInitiatedLoad()
                 webView?.goForward()
@@ -4242,6 +4246,11 @@ class BrowserTabFragment :
 
             it.settings.apply {
                 clientBrandHintProvider.setDefault(this)
+                // NovaProfile v2.8.16: Sec-CH-UA brand hints must agree
+                // with the profile UA header (Chrome 151) — DDG's
+                // provider only renames brands and keeps the WebView's
+                // own version (157). Applied after every DDG call.
+                ClientHints.alignToProfile(this)
                 webViewClient.clientProvider = clientBrandHintProvider
                 // NovaProfile v2.8.13: the header UA must match the
                 // JS-spoofed navigator.userAgent (profile UA, Chrome 151)
@@ -5550,6 +5559,7 @@ class BrowserTabFragment :
         val currentIndex = navList?.currentIndex ?: 0
 
         clientBrandHintProvider.setOn(webView?.safeSettings, navList?.getItemAtIndex(currentIndex + stepsToMove)?.url.toString())
+        ClientHints.alignToProfile(webView?.safeSettings)
         webViewClient.onUserInitiatedLoad()
         webView?.goBackOrForward(stepsToMove)
     }
