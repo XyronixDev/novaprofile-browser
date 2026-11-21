@@ -113,8 +113,9 @@ class BrowserMenuBottomSheet(
     val newTabMenuItem: MenuActionButtonView
         get() = binding.newTabMenuItem
 
-    val newDuckChatMenuItem: MenuActionButtonView
-        get() = binding.newDuckChatMenuItem
+    // NovaProfile v2.8.14: the Duck.ai action button is now Home.
+    val homeMenuItem: MenuActionButtonView
+        get() = binding.homeMenuItem
 
     val settingsMenuItem: MenuActionButtonView
         get() = binding.settingsMenuItem
@@ -269,7 +270,7 @@ class BrowserMenuBottomSheet(
     private fun showCommonItems() {
         menuActionItemsContainer.isVisible = true
         newTabMenuItem.isVisible = true
-        newDuckChatMenuItem.isVisible = true
+        homeMenuItem.isVisible = true
         settingsMenuItem.isVisible = true
         refreshActionMenuItem.isVisible = false
         bookmarksMenuItem.isVisible = true
@@ -280,8 +281,8 @@ class BrowserMenuBottomSheet(
         binding.topInContextSection.isVisible = true
         backMenuItem.isEnabled = viewState.canGoBack
         forwardMenuItem.isEnabled = viewState.canGoForward
-        newDuckChatMenuItem.isEnabled = viewState.showDuckChatOption
-        newDuckChatMenuItem.isVisible = viewState.showDuckChatOption
+        homeMenuItem.isEnabled = true
+        homeMenuItem.isVisible = true
         newTabMenuItem.isEnabled = true
         settingsMenuItem.isEnabled = true
 
@@ -370,8 +371,8 @@ class BrowserMenuBottomSheet(
         backMenuItem.isEnabled = false
         forwardMenuItem.isEnabled = viewState.canGoForward
         newTabMenuItem.isEnabled = true
-        newDuckChatMenuItem.isEnabled = viewState.showDuckChatOption
-        newDuckChatMenuItem.isVisible = viewState.showDuckChatOption
+        homeMenuItem.isEnabled = true
+        homeMenuItem.isVisible = true
         settingsMenuItem.isEnabled = true
 
         refreshMenuItem.isVisible = false
@@ -400,7 +401,7 @@ class BrowserMenuBottomSheet(
         backMenuItem.isEnabled = viewState.canGoBack
         forwardMenuItem.isEnabled = viewState.canGoForward
         newTabMenuItem.isVisible = false
-        newDuckChatMenuItem.isVisible = false
+        homeMenuItem.isVisible = false
         settingsMenuItem.isVisible = false
         refreshActionMenuItem.isVisible = true
 
@@ -450,8 +451,8 @@ class BrowserMenuBottomSheet(
         backMenuItem.isVisible = false
         forwardMenuItem.isVisible = false
         newTabMenuItem.isEnabled = true
-        newDuckChatMenuItem.isEnabled = false
-        newDuckChatMenuItem.isVisible = false
+        homeMenuItem.isEnabled = false
+        homeMenuItem.isVisible = false
         settingsMenuItem.isEnabled = true
 
         refreshMenuItem.isVisible = false
