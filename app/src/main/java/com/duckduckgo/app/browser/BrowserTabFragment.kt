@@ -385,6 +385,7 @@ import com.duckduckgo.user.agent.api.UserAgentProvider
 import com.duckduckgo.voice.api.VoiceSearchLauncher
 import com.duckduckgo.voice.api.VoiceSearchLauncher.Source.BROWSER
 import com.duckduckgo.voice.api.VoiceSearchLauncher.VoiceSearchMode
+import com.novaprofiles.app.util.NovaProfileSession
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.google.android.material.snackbar.BaseTransientBottomBar
@@ -4236,7 +4237,12 @@ class BrowserTabFragment :
             it.settings.apply {
                 clientBrandHintProvider.setDefault(this)
                 webViewClient.clientProvider = clientBrandHintProvider
-                userAgentString = userAgentProvider.userAgent()
+                // NovaProfile v2.8.13: the header UA must match the
+                // JS-spoofed navigator.userAgent (profile UA, Chrome 151)
+                // — whoer deducted 15% for "Browser headers different"
+                // (header said Chrome 157). Plain DDG UA when no profile
+                // is running.
+                userAgentString = NovaProfileSession.profileUserAgent() ?: userAgentProvider.userAgent()
                 javaScriptEnabled = true
                 domStorageEnabled = true
                 loadWithOverviewMode = true
@@ -5140,11 +5146,28 @@ class BrowserTabFragment :
         isDesktop: Boolean,
     ) {
         val currentAgent = webView?.safeSettings?.userAgentString
-        val newAgent = userAgentProvider.userAgent(url, isDesktop)
+        // NovaProfile v2.8.13: keep the header UA on the profile UA (see
+        // configureWebView) — DDG re-applies its own UA on every
+        // navigation, which would undo the override. Desktop-site
+        // requests keep DDG's desktop UA (the profile UA is mobile).
+        val baseAgent = userAgentProvider.userAgent(url, isDesktop)
+        val newAgent = if (!isDesktop) NovaProfileSession.profileUserAgent() ?: baseAgent else baseAgent
         if (newAgent != currentAgent) {
             webView?.safeSettings?.userAgentString = newAgent
         }
         logcat(INFO) { "User Agent is $newAgent" }
+    }
+
+    /**
+     * NovaProfile v2.8.13: re-load the current tab under the RUNNING
+     * profile. Returning to the browser from the home screen (Eye icon)
+     * only brought the old tab forward — a page loaded under Profile 1's
+     * proxy kept showing Profile 1's IP/country even after Profile 2
+     * (UK) was run. A reload keeps the same page, re-fetched through the
+     * current profile's proxy + fingerprint.
+     */
+    fun reloadTab() {
+        webView?.reload()
     }
 
     /**
