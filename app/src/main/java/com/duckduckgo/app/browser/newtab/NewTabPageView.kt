@@ -313,11 +313,10 @@ class NewTabPageView @JvmOverloads constructor(
         binding.indonesiaNewTabSectionView.show()
         binding.appTrackingProtectionStateView.show()
 
-        if (viewState.shouldShowLogo) {
-            homeBackgroundLogo.showLogo()
-        } else {
-            homeBackgroundLogo.hideLogo()
-        }
+        // NovaProfile v2.8.14: the DuckDuckGo logo never shows on the
+        // new-tab page, whatever any flag says (the user still saw the
+        // duck on a fresh tab in v2.8.13).
+        homeBackgroundLogo.hideLogo()
         if (viewState.showNextSteps) {
             binding.messageCta.gone()
             showNextStepsSection()
