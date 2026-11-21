@@ -1342,7 +1342,7 @@ private fun ManualProxyView(
             color = GoGreyText
         )
         OutlinedButton(
-            onClick = { proxyFileLauncher.launch(null) },
+            onClick = { proxyFileLauncher.launch(arrayOf("*/*")) },
             modifier = Modifier.fillMaxWidth()
         ) { Text("Import proxies from file (.txt)") }
         importResult?.let { Text(it, color = GoGreyText) }
