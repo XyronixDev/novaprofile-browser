@@ -122,6 +122,61 @@ class ProxyStore(context: Context) {
         }
     }
 
+    /**
+     * v2.8.16: parse one line of a proxy text file. Accepts
+     * "host:port:user:pass" (the Webshare export) and bare "host:port".
+     * Returns null for blank or unparseable lines — the caller counts
+     * those instead of silently dropping them. Mode is always SOCKS5
+     * (user order v2.8.15); the name is set by importLines.
+     */
+    fun parseProxyLine(line: String): ProxyEntry? {
+        val t = line.trim()
+        if (t.isBlank()) return null
+        val four = Regex("""^([^:\s]+):(\d{1,5}):([^:]+):(.+)$""").matchEntire(t)
+        if (four != null) {
+            val port = four.groupValues[2].toIntOrNull() ?: return null
+            if (port !in 1..65535) return null
+            return ProxyEntry(
+                name = "", mode = "SOCKS5", host = four.groupValues[1],
+                port = port, user = four.groupValues[3], pass = four.groupValues[4]
+            )
+        }
+        val two = Regex("""^([^:\s]+):(\d{1,5})$""").matchEntire(t)
+        if (two != null) {
+            val port = two.groupValues[2].toIntOrNull() ?: return null
+            if (port !in 1..65535) return null
+            return ProxyEntry(name = "", mode = "SOCKS5", host = two.groupValues[1], port = port)
+        }
+        return null
+    }
+
+    /**
+     * v2.8.16: import many lines at once. Returns (imported, skipped).
+     * Names continue the "Myproxy #N" numbering; a host:port that is
+     * already saved is skipped, not replaced — replacing it would throw
+     * away its live-check result (IP, speed, country).
+     */
+    fun importLines(lines: List<String>): Pair<Int, Int> {
+        var imported = 0
+        var skipped = 0
+        var max = _proxies.value.mapNotNull {
+            Regex("""^Myproxy #(\d+)$""").find(it.name)?.groupValues?.getOrNull(1)?.toIntOrNull()
+        }.maxOrNull() ?: 0
+        for (line in lines) {
+            val parsed = parseProxyLine(line)
+            if (parsed == null) {
+                skipped++
+            } else if (_proxies.value.any { it.host == parsed.host && it.port == parsed.port }) {
+                skipped++
+            } else {
+                max += 1
+                add(parsed.copy(name = "Myproxy #$max"))
+                imported++
+            }
+        }
+        return imported to skipped
+    }
+
     fun remove(id: String) {
         persist(_proxies.value.filter { it.id != id })
     }
