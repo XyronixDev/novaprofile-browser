@@ -385,6 +385,7 @@ import com.duckduckgo.user.agent.api.UserAgentProvider
 import com.duckduckgo.voice.api.VoiceSearchLauncher
 import com.duckduckgo.voice.api.VoiceSearchLauncher.Source.BROWSER
 import com.duckduckgo.voice.api.VoiceSearchLauncher.VoiceSearchMode
+import com.novaprofiles.app.ui.MainActivity
 import com.novaprofiles.app.util.NovaProfileSession
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
@@ -1843,13 +1844,18 @@ class BrowserTabFragment :
                 pixel.fire(AppPixelName.SHEET_MENU_VPN)
                 viewModel.onVpnMenuClicked()
             }
-            onMenuItemClicked(newDuckChatMenuItem) {
-                pixel.fire(AppPixelName.SHEET_MENU_AICHAT)
+            onMenuItemClicked(homeMenuItem) {
                 activity?.currentFocus?.let {
                     it.hideKeyboard()
                     it.clearFocus()
                 }
-                viewModel.openNewDuckChat(omnibar.viewMode)
+                // NovaProfile v2.8.14: direct return to the NovaProfile
+                // home — no walking back through every open tab/page.
+                val homeIntent = Intent(requireContext(), MainActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                }
+                startActivity(homeIntent)
+                activity?.finish()
             }
             onMenuItemClicked(duckAiNewChatMenuItem) {
                 pixel.fire(AppPixelName.SHEET_MENU_AICHAT)
