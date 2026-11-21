@@ -41,6 +41,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.FileUpload
@@ -64,6 +65,7 @@ import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
@@ -80,7 +82,9 @@ import androidx.compose.runtime.setValue
 import com.novaprofiles.app.util.ProxyEntry
 import com.novaprofiles.app.util.ProxyStore
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -452,7 +456,7 @@ fun MainScreen(vm: ProfileViewModel) {
             title = { Text("About NovaProfile") },
             text = {
                 Text(
-                    "NovaProfile 2.8.15 Pro — original multi-profile browser.\n\n" +
+                    "NovaProfile 2.8.16 Pro — original multi-profile browser.\n\n" +
                         "• Unlimited profiles, everything free, no billing, no trial.\n" +
                         "• Per-profile cookies, proxy, user-agent, language, " +
                         "screen, WebGL and Canvas settings.\n" +
@@ -1195,6 +1199,10 @@ private fun SwitchRow(label: String, checked: Boolean, onCheckedChange: (Boolean
  * ipify before it is applied to the draft, so a dead proxy can never
  * be saved onto a profile; the live check also resolves the proxy IP's
  * country + timezone for the card flag and the timezone auto-match.
+ * v2.8.16: a .txt file (one host:port:user:pass line per proxy) can
+ * be imported from the device file manager, and every saved proxy is
+ * listed below the form — tap one to fill it in. Typing stays as the
+ * manual option.
  */
 @Composable
 private fun ManualProxyView(
@@ -1206,6 +1214,36 @@ private fun ManualProxyView(
     onBack: () -> Unit
 ) {
     val savedProxies by proxyStore.proxies.collectAsState()
+    val ctx = LocalContext.current
+    var importResult by remember { mutableStateOf<String?>(null) }
+    // v2.8.16: import a proxy list file from the device file manager —
+    // one host:port:user:pass line per proxy (Webshare export). The
+    // file is read off the main thread; bad or already-saved lines are
+    // counted, never silently dropped.
+    val proxyFileLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            scope.launch {
+                val lines = withContext(Dispatchers.IO) {
+                    try {
+                        ctx.contentResolver.openInputStream(uri)?.bufferedReader()?.readLines()
+                            ?: emptyList()
+                    } catch (e: Exception) {
+                        emptyList()
+                    }
+                }
+                val (imported, skipped) = proxyStore.importLines(lines)
+                importResult = if (imported == 0 && skipped == 0) {
+                    "No proxies found in this file — expected host:port:user:pass lines."
+                } else if (skipped > 0) {
+                    "$imported proxies imported • $skipped lines skipped (bad or already saved)"
+                } else {
+                    "$imported proxies imported"
+                }
+            }
+        }
+    }
     var newIp by remember {
         mutableStateOf(
             if (current.proxyMode == "NONE" || current.proxyHost.isBlank()) ""
@@ -1245,9 +1283,15 @@ private fun ManualProxyView(
             "Type your proxy — it is tested before it is applied. " +
                 "IP and port are separate fields. Paste a full " +
                 "host:port:user:pass line and all four fields fill themselves. " +
-                "Protocol is SOCKS5 — permanently.",
+                "Protocol is SOCKS5 — permanently. Or import a .txt file " +
+                "with one host:port:user:pass line per proxy.",
             color = GoGreyText
         )
+        OutlinedButton(
+            onClick = { proxyFileLauncher.launch(null) },
+            modifier = Modifier.fillMaxWidth()
+        ) { Text("Import proxies from file (.txt)") }
+        importResult?.let { Text(it, color = GoGreyText) }
         OutlinedTextField(
             value = newIp, onValueChange = { typed ->
                 // v2.8.7: a pasted line splits into the separate fields —
@@ -1357,6 +1401,55 @@ private fun ManualProxyView(
             onClick = onDirect,
             modifier = Modifier.fillMaxWidth()
         ) { Text("Use no proxy (Direct)") }
+        // v2.8.16: every saved proxy, with its live-check detail — tap
+        // one to fill the form above, bin to delete it. Manual typing
+        // stays as the option above; this list is the shortcut.
+        if (savedProxies.isNotEmpty()) {
+            Text(
+                "Saved proxies (${savedProxies.size}) — tap one to fill the form",
+                fontWeight = FontWeight.Bold, fontSize = 16.sp
+            )
+            savedProxies.forEach { entry ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(1.dp, Color(0xFFE0E0E0), RoundedCornerShape(8.dp))
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable {
+                            newIp = entry.host
+                            newPort = entry.port.toString()
+                            newUser = entry.user
+                            newPass = entry.pass
+                            formError = null
+                        }
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            "${entry.mode} ${entry.host}:${entry.port}",
+                            fontWeight = FontWeight.Bold
+                        )
+                        val countryCode = entry.country.substringBefore(" •").trim()
+                        val countryLabel = if (countryCode.length == 2) {
+                            Profile.countrySettings(countryCode).label
+                        } else {
+                            entry.country
+                        }
+                        Text(
+                            if (countryLabel.isBlank()) "Not tested yet" else countryLabel,
+                            color = GoGreyText
+                        )
+                        if (entry.ok && entry.lastIp.isNotBlank()) {
+                            Text("IP ${entry.lastIp} • ${entry.lastMs} ms", color = GoGreyText)
+                        }
+                    }
+                    IconButton(onClick = { proxyStore.remove(entry.id) }) {
+                        Icon(Icons.Filled.Delete, contentDescription = "Delete proxy")
+                    }
+                }
+            }
+        }
         Spacer(Modifier.height(24.dp))
     }
 }
