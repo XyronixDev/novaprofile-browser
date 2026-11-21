@@ -203,8 +203,15 @@ object FingerprintJs {
             )
         }
 
-        // --- Timezone: pages read it via Intl; override the resolved options ---
+        // --- Timezone: pages read it via Intl AND via Date.getTimezoneOffset.
+        // The Intl override alone leaked the device offset: whoer scored 78%
+        // on Nepal phone time and 80% on LA phone time (v2.8.11) — the page
+        // was reading the device timezone, not the profile's. Spoof both.
         if (profile.timezone != "Auto") {
+            // getTimezoneOffset() returns (UTC - local) in minutes; Java's
+            // getOffset() returns (local - UTC) in ms, so negate and convert.
+            val tzOffsetMinutes = -java.util.TimeZone.getTimeZone(profile.timezone)
+                .getOffset(System.currentTimeMillis()) / 60000
             sb.append(
                 """
                 try {
@@ -214,6 +221,7 @@ object FingerprintJs {
                         o.timeZone = ${jsString(profile.timezone)};
                         return o;
                     };
+                    Date.prototype.getTimezoneOffset = function(){ return $tzOffsetMinutes; };
                 } catch (e) {}
                 """.trimIndent()
             )
