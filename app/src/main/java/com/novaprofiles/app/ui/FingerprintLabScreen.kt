@@ -305,14 +305,24 @@ fun FingerprintLabScreen(profile: Profile, onBack: () -> Unit) {
                     // DDG port: prepare the profile (proxy + data dir)
                     // first, then open whoer.net in DuckDuckGo's browser.
                     scope.launch {
-                        if (NovaProfileSession.prepare(context, profile)) {
-                            context.startActivity(
-                                BrowserActivity.intent(
-                                    context,
-                                    launchSource = AppLauncher,
-                                    queryExtra = "https://whoer.net"
+                        when (NovaProfileSession.prepare(context, profile)) {
+                            NovaProfileSession.PrepareResult.PROXY_FAILED -> Unit
+                            // v2.8.17: this process already uses another
+                            // profile's data dir — restart it for this
+                            // profile; the fresh process auto-runs it
+                            // and opens whoer.net there.
+                            NovaProfileSession.PrepareResult.SUFFIX_FAILED ->
+                                NovaProfileSession.restartAppForProfile(
+                                    context, profile.id, "https://whoer.net"
                                 )
-                            )
+                            NovaProfileSession.PrepareResult.OK ->
+                                context.startActivity(
+                                    BrowserActivity.intent(
+                                        context,
+                                        launchSource = AppLauncher,
+                                        queryExtra = "https://whoer.net"
+                                    )
+                                )
                         }
                     }
                 },
