@@ -27,6 +27,7 @@
     <string name="browserMenuEnablePrivacyProtection">Enable Privacy Protection</string>
     <string name="browserMenuDisablePrivacyProtection">Disable Privacy Protection</string>
     <string name="browserMenuNewTab">New Tab</string>
+    <string name="browserMenuHome">Home</string>
     <string name="browserMenuDuckChat">Duck.ai</string>
     <string name="browserMenuShare">Share</string>
     <string name="browserMenuEmailAlias">Generate Duck Address</string>
