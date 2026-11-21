@@ -2,6 +2,9 @@ package com.novaprofiles.app.util
 
 import android.content.Context
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.withContext
@@ -156,9 +159,10 @@ class ProxyStore(context: Context) {
      * already saved is skipped, not replaced — replacing it would throw
      * away its live-check result (IP, speed, country).
      */
-    fun importLines(lines: List<String>): Pair<Int, Int> {
+    fun importLines(lines: List<String>): Triple<Int, Int, List<ProxyEntry>> {
         var imported = 0
         var skipped = 0
+        val added = mutableListOf<ProxyEntry>()
         var max = _proxies.value.mapNotNull {
             Regex("""^Myproxy #(\d+)$""").find(it.name)?.groupValues?.getOrNull(1)?.toIntOrNull()
         }.maxOrNull() ?: 0
@@ -170,11 +174,13 @@ class ProxyStore(context: Context) {
                 skipped++
             } else {
                 max += 1
-                add(parsed.copy(name = "Myproxy #$max"))
+                val named = parsed.copy(name = "Myproxy #$max")
+                add(named)
+                added += named
                 imported++
             }
         }
-        return imported to skipped
+        return Triple(imported, skipped, added)
     }
 
     fun remove(id: String) {
@@ -206,8 +212,21 @@ class ProxyStore(context: Context) {
             })
         }
         try {
-            val started = System.currentTimeMillis()
-            try {
+            checkCore(entry)
+        } finally {
+            if (needsAuth) Authenticator.setDefault(null)
+        }
+    }
+
+    /**
+     * v2.8.19: the core of check() — ipify + ip-api through the proxy.
+     * Assumes the caller already installed the Authenticator (check()
+     * installs one per call; checkAll() installs one shared, host-keyed
+     * Authenticator for the whole batch).
+     */
+    private suspend fun checkCore(entry: ProxyEntry): ProxyEntry {
+        val started = System.currentTimeMillis()
+        return try {
             val type = if (entry.mode == "SOCKS5") Proxy.Type.SOCKS else Proxy.Type.HTTP
             val proxy = Proxy(type, InetSocketAddress(entry.host, entry.port))
             val conn = URL("https://api.ipify.org").openConnection(proxy) as HttpURLConnection
@@ -265,10 +284,38 @@ class ProxyStore(context: Context) {
         } catch (e: Exception) {
             entry.copy(ok = false, lastMs = System.currentTimeMillis() - started)
         }
-        } finally {
-            if (needsAuth) Authenticator.setDefault(null)
-        }
     }
+
+    /**
+     * v2.8.19: test a batch of entries in PARALLEL with ONE shared,
+     * host-keyed Authenticator, so an imported .txt fills the list
+     * with flags + countries in seconds. check() installs its own
+     * Authenticator per call and cannot run in parallel — two calls
+     * would overwrite each other's credentials mid-flight.
+     * Returns the checked entries (same ids); the caller persists
+     * them with update().
+     */
+    suspend fun checkAll(entries: List<ProxyEntry>): List<ProxyEntry> =
+        withContext(Dispatchers.IO) {
+            if (entries.isEmpty()) return@withContext emptyList()
+            val creds = entries.filter { it.user.isNotBlank() }
+                .associate { it.host to (it.user to it.pass) }
+            if (creds.isNotEmpty()) {
+                Authenticator.setDefault(object : Authenticator() {
+                    override fun getPasswordAuthentication(): PasswordAuthentication? {
+                        val c = creds[requestingHost] ?: return null
+                        return PasswordAuthentication(c.first, c.second.toCharArray())
+                    }
+                })
+            }
+            try {
+                coroutineScope {
+                    entries.map { entry -> async { checkCore(entry) } }.awaitAll()
+                }
+            } finally {
+                if (creds.isNotEmpty()) Authenticator.setDefault(null)
+            }
+        }
 
     /**
      * v2.6 smart 90% fix: ONE ip-api call through the proxy, returning the
