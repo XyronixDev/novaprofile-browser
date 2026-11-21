@@ -266,6 +266,18 @@ class BrowserViewModel @Inject constructor(
         }
     }
 
+    /**
+     * NovaProfile v2.8.17: close every tab when a different profile
+     * takes over the browser — tabs are stored globally, so without
+     * this the new profile would see the old profile's pages. The
+     * tab manager seeds one fresh tab once the list is empty.
+     */
+    fun clearAllTabsForProfileSwitch() {
+        viewModelScope.launch {
+            tabRepository.deleteAll()
+        }
+    }
+
     suspend fun onNewTabRequested(sourceTabId: String? = null): String {
         recordPendingNewTabOpenedExit()
         return if (sourceTabId != null) {
