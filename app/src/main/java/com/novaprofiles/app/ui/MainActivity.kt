@@ -10,6 +10,8 @@ package com.novaprofiles.app.ui
 
 import android.content.Intent
 import android.os.Bundle
+import android.view.View
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -70,12 +72,12 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.window.Dialog
@@ -445,7 +447,7 @@ fun MainScreen(vm: ProfileViewModel) {
             title = { Text("About NovaProfile") },
             text = {
                 Text(
-                    "NovaProfile 2.8.11 Pro — original multi-profile browser.\n\n" +
+                    "NovaProfile 2.8.12 Pro — original multi-profile browser.\n\n" +
                         "• Unlimited profiles, everything free, no billing, no trial.\n" +
                         "• Per-profile cookies, proxy, user-agent, language, " +
                         "screen, WebGL and Canvas settings.\n" +
@@ -979,15 +981,28 @@ fun EditorScreen(
             dismissOnClickOutside = false
         )
     ) {
-        // v2.8.7: a Dialog has its own window — its status bar showed grey
-        // (transparent over the dimmed home). Force it white with dark
-        // icons, like the activity's own bar.
-        val dialogWindow = (LocalView.current.parent as? DialogWindowProvider)?.window
-        SideEffect {
-            dialogWindow?.let {
-                it.statusBarColor = android.graphics.Color.WHITE
-                WindowInsetsControllerCompat(it, it.decorView).isAppearanceLightStatusBars = true
+        // v2.8.12: a Dialog has its own window — its status bar showed grey
+        // (transparent over the dimmed home). The v2.8.7 SideEffect read
+        // LocalView.current.parent during the first composition, when the
+        // dialog view is not attached yet, so the window was null and
+        // nothing was applied. Apply on attach instead (and at once if
+        // the view is already attached).
+        val dialogView = LocalView.current
+        DisposableEffect(dialogView) {
+            fun applyBar() {
+                (dialogView.parent as? DialogWindowProvider)?.window?.let {
+                    it.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS)
+                    it.statusBarColor = android.graphics.Color.WHITE
+                    WindowInsetsControllerCompat(it, it.decorView).isAppearanceLightStatusBars = true
+                }
             }
+            val listener = object : View.OnAttachStateChangeListener {
+                override fun onViewAttachedToWindow(v: View) = applyBar()
+                override fun onViewDetachedFromWindow(v: View) {}
+            }
+            dialogView.addOnAttachStateChangeListener(listener)
+            applyBar()
+            onDispose { dialogView.removeOnAttachStateChangeListener(listener) }
         }
         Box(
             modifier = Modifier
