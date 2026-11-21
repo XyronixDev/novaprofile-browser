@@ -22,6 +22,10 @@ import kotlin.coroutines.resume
 object NovaProfileSession {
     const val STOP_PROFILE_ACTION = "com.novaprofiles.app.STOP_PROFILE"
     const val EXTRA_PROFILE_ID = "profile_id"
+    // v2.8.13: ask the browser to re-load the current tab under the
+    // running profile (the tab may hold a page loaded under another
+    // profile's proxy — stale IP/country on whoer).
+    const val EXTRA_RELOAD_TAB = "novaprofile_reload_tab"
 
     private const val PREFS = "novaprofile_session"
     private const val KEY_RUNNING_PROFILE_ID = "running_profile_id"
@@ -36,6 +40,18 @@ object NovaProfileSession {
     }
 
     fun currentProfile(): Profile? = cachedProfile
+
+    /**
+     * v2.8.13: the HTTP User-Agent header the WebView sends must match the
+     * JS-spoofed navigator.userAgent, or a site sees two different
+     * browsers (whoer showed "Browser: Chrome 157.0" in the header vs
+     * Chrome 151 in JS, and deducted 15% for "Browser headers
+     * different"). Returns the profile's UA when a profile is running,
+     * else null (plain DDG UA stands).
+     */
+    fun profileUserAgent(): String? = cachedProfile?.let { p ->
+        p.userAgent.ifBlank { Profile.defaultUserAgent(p.userAgentPreset) }
+    }
 
     fun runningProfileId(context: Context): Long? {
         val id = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
