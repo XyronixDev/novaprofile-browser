@@ -203,10 +203,13 @@ object FingerprintJs {
             )
         }
 
-        // --- Timezone: pages read it via Intl AND via Date.getTimezoneOffset.
-        // The Intl override alone leaked the device offset: whoer scored 78%
-        // on Nepal phone time and 80% on LA phone time (v2.8.11) — the page
-        // was reading the device timezone, not the profile's. Spoof both.
+        // --- Timezone: pages read it via Intl, via Date.getTimezoneOffset,
+        // via Date.toString() and via the local-time getters. The Intl
+        // override alone leaked the device offset (whoer 78% on Nepal phone
+        // time, 80% on LA time); v2.8.11 added getTimezoneOffset, but the
+        // score did not move on the phone — the date string was the
+        // remaining leak. Spoof every path, all from the same fixed
+        // profile offset, so they agree with each other.
         if (profile.timezone != "Auto") {
             // getTimezoneOffset() returns (UTC - local) in minutes; Java's
             // getOffset() returns (local - UTC) in ms, so negate and convert.
@@ -222,6 +225,30 @@ object FingerprintJs {
                         return o;
                     };
                     Date.prototype.getTimezoneOffset = function(){ return $tzOffsetMinutes; };
+                    var _tzShift = -$tzOffsetMinutes * 60000;
+                    function _tzPad(n){ return (n < 10 ? '0' : '') + n; }
+                    function _tzGmt(){ var m = $tzOffsetMinutes; var s = m <= 0 ? '+' : '-'; var a = Math.abs(m);
+                        return 'GMT' + s + _tzPad(Math.floor(a / 60)) + _tzPad(a % 60); }
+                    function _tzLocal(d){ return new Date(d.getTime() + _tzShift); }
+                    var _tzDays = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+                    var _tzMons = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+                    function _tzDateStr(l){ return _tzDays[l.getUTCDay()] + ' ' + _tzMons[l.getUTCMonth()] +
+                        ' ' + _tzPad(l.getUTCDate()) + ' ' + l.getUTCFullYear(); }
+                    function _tzTimeStr(l){ return _tzPad(l.getUTCHours()) + ':' + _tzPad(l.getUTCMinutes()) +
+                        ':' + _tzPad(l.getUTCSeconds()); }
+                    Date.prototype.toString = function(){ if (isNaN(this.getTime())) return 'Invalid Date';
+                        var l = _tzLocal(this);
+                        return _tzDateStr(l) + ' ' + _tzTimeStr(l) + ' ' + _tzGmt() + ' (' + ${jsString(profile.timezone)} + ')'; };
+                    Date.prototype.toTimeString = function(){ if (isNaN(this.getTime())) return 'Invalid Date';
+                        var l = _tzLocal(this); return _tzTimeStr(l) + ' ' + _tzGmt() + ' (' + ${jsString(profile.timezone)} + ')'; };
+                    Date.prototype.getHours = function(){ return _tzLocal(this).getUTCHours(); };
+                    Date.prototype.getMinutes = function(){ return _tzLocal(this).getUTCMinutes(); };
+                    Date.prototype.getSeconds = function(){ return _tzLocal(this).getUTCSeconds(); };
+                    Date.prototype.getMilliseconds = function(){ return _tzLocal(this).getUTCMilliseconds(); };
+                    Date.prototype.getDate = function(){ return _tzLocal(this).getUTCDate(); };
+                    Date.prototype.getDay = function(){ return _tzLocal(this).getUTCDay(); };
+                    Date.prototype.getMonth = function(){ return _tzLocal(this).getUTCMonth(); };
+                    Date.prototype.getFullYear = function(){ return _tzLocal(this).getUTCFullYear(); };
                 } catch (e) {}
                 """.trimIndent()
             )
