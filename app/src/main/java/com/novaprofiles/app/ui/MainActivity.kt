@@ -73,6 +73,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -120,9 +121,19 @@ class MainActivity : ComponentActivity() {
             this,
             ViewModelProvider.AndroidViewModelFactory.getInstance(application)
         )[ProfileViewModel::class.java]
+        // v2.8.17: after a profile-switch restart, the fresh process
+        // auto-runs the profile named here (plus an optional query,
+        // e.g. whoer.net from the fingerprint lab). The extras are
+        // removed at once so a later recreation never re-runs them.
+        val autoRunProfileId = intent.getLongExtra(
+            NovaProfileSession.EXTRA_AUTO_RUN_PROFILE_ID, -1L
+        ).takeIf { it > 0 }
+        val autoRunQuery = intent.getStringExtra(NovaProfileSession.EXTRA_AUTO_RUN_QUERY)
+        intent.removeExtra(NovaProfileSession.EXTRA_AUTO_RUN_PROFILE_ID)
+        intent.removeExtra(NovaProfileSession.EXTRA_AUTO_RUN_QUERY)
         setContent {
             NovaProfileTheme {
-                MainScreen(vm = vm)
+                MainScreen(vm = vm, autoRunProfileId = autoRunProfileId, autoRunQuery = autoRunQuery)
             }
         }
     }
@@ -169,7 +180,7 @@ private enum class HomeTab { PROFILES, SETTINGS }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen(vm: ProfileViewModel) {
+fun MainScreen(vm: ProfileViewModel, autoRunProfileId: Long? = null, autoRunQuery: String? = null) {
     val profiles by vm.profiles.collectAsState()
     // v2.7.2: trash is gone — no trash list, no showTrash state.
     val folders by vm.folders.collectAsState()
@@ -216,22 +227,118 @@ fun MainScreen(vm: ProfileViewModel) {
      *  proxy override and waits (v2.7.1 lesson: a WebView created
      *  before the override lands leaks the real IP). Fail-closed: a
      *  proxy that cannot be applied means no browser at all. */
-    suspend fun launchProfile(p: Profile): Boolean {
-        if (!NovaProfileSession.prepare(ctx, p)) {
-            launchFailedId = p.id
-            vm.proxyCheckResult.value =
-                "Proxy apply nahi hua (${ProxyHelper.summary(p)}). Dobara try karo — browser direct nahi khola."
-            return false
+    /** DDG port: prepare the profile, then open DuckDuckGo's browser
+     *  with it. prepare() applies the per-profile WebView data dir +
+     *  proxy override and waits (v2.7.1 lesson: a WebView created
+     *  before the override lands leaks the real IP). Fail-closed: a
+     *  proxy that cannot be applied means no browser at all.
+     *  v2.8.17: when this process already uses another profile's data
+     *  dir, prepare() reports SUFFIX_FAILED and the whole process is
+     *  restarted for this profile — the fresh process auto-runs it
+     *  with its own dir (own cookies/storage). Tabs belong to the
+     *  last profile that used the browser, so a different profile
+     *  flags them for clearing; the browser consumes the flag on its
+     *  first tab-list emission and seeds one fresh tab. */
+    suspend fun launchProfile(p: Profile, query: String? = null): Boolean {
+        when (NovaProfileSession.prepare(ctx, p)) {
+            NovaProfileSession.PrepareResult.PROXY_FAILED -> {
+                launchFailedId = p.id
+                vm.proxyCheckResult.value =
+                    "Proxy apply nahi hua (${ProxyHelper.summary(p)}). Dobara try karo — browser direct nahi khola."
+                return false
+            }
+            NovaProfileSession.PrepareResult.SUFFIX_FAILED -> {
+                NovaProfileSession.restartAppForProfile(ctx, p.id, query)
+                return false
+            }
+            NovaProfileSession.PrepareResult.OK -> Unit
         }
         // v2.8.13: ask the browser to re-load the current tab under this
         // profile (the tab may hold a page loaded under another profile's
         // proxy — stale IP/country on whoer).
+        val clearTabs = NovaProfileSession.lastTabProfileId(ctx) != p.id
+        NovaProfileSession.setLastTabProfileId(ctx, p.id)
+        if (clearTabs) NovaProfileSession.setTabsClearPending(ctx, true)
         ctx.startActivity(
-            BrowserActivity.intent(ctx, launchSource = AppLauncher).apply {
+            BrowserActivity.intent(ctx, launchSource = AppLauncher, queryExtra = query).apply {
                 putExtra(NovaProfileSession.EXTRA_RELOAD_TAB, true)
             }
         )
         return true
+    }
+
+    /**
+     * The card Run tap, shared by the tap and the post-restart
+     * auto-run (v2.8.17): re-sync the proxy IP's timezone +
+     * coordinates first when the profile follows the IP, then launch
+     * it — with the fresh values, never the stale stored ones
+     * (v2.8.2). The optional query is only for the fingerprint
+     * lab's whoer check after a restart.
+     */
+    fun runProfile(p: Profile, query: String? = null) {
+        launchFailedId = null
+        // v2.6 smart 90% fix: before opening the browser,
+        // re-resolve the proxy IP's CURRENT timezone +
+        // coordinates (one ip-api call through the proxy)
+        // and save them, so the run never uses a stale
+        // timezone. Free US proxies sit in Mountain View
+        // (America/Los_Angeles) while the country default
+        // is New York — a 3-hour mismatch whoer deducts
+        // for. On lookup failure, launch with the stored
+        // values instead of blocking.
+        if (p.proxyMode != "NONE" &&
+            (p.timezoneMode == "IP" || p.geoMode == "IP")
+        ) {
+            syncingIds = syncingIds + p.id
+            scope.launch {
+                val entry = ProxyEntry(
+                    name = p.name,
+                    mode = p.proxyMode, host = p.proxyHost,
+                    port = p.proxyPort, user = p.proxyUser,
+                    pass = p.proxyPass
+                )
+                val loc = proxyStore.resolveLocation(entry)
+                // v2.8.2: launch with the FRESH profile —
+                // the old code saved the re-synced timezone
+                // to Room but launched the browser with the
+                // STALE profile, so whoer saw a timezone
+                // mismatch (78% instead of ~90%).
+                var toLaunch = p
+                if (loc != null) {
+                    val updated = p.copy(
+                        timezone = if (p.timezoneMode == "IP") loc.timezone else p.timezone,
+                        latitude = if (p.geoMode == "IP" && loc.lat != 0.0) loc.lat else p.latitude,
+                        longitude = if (p.geoMode == "IP" && loc.lon != 0.0) loc.lon else p.longitude
+                    )
+                    vm.updateNow(updated)
+                    toLaunch = updated
+                    val saved = proxyStore.proxies.value.firstOrNull {
+                        it.host == p.proxyHost && it.port == p.proxyPort
+                    }
+                    if (saved != null) {
+                        proxyStore.update(
+                            saved.copy(
+                                lastIp = loc.ip, lastTimezone = loc.timezone,
+                                lastLat = loc.lat, lastLon = loc.lon, ok = true
+                            )
+                        )
+                    }
+                }
+                val launched = launchProfile(toLaunch, query)
+                syncingIds = syncingIds - p.id
+                if (launched) {
+                    runningIds = runningIds + p.id
+                    vm.markRun(p.id)
+                }
+            }
+        } else {
+            scope.launch {
+                if (launchProfile(p, query)) {
+                    runningIds = runningIds + p.id
+                    vm.markRun(p.id)
+                }
+            }
+        }
     }
 
     val exportLauncher = rememberLauncherForActivityResult(
@@ -350,6 +457,17 @@ fun MainScreen(vm: ProfileViewModel) {
                 .background(Color.White)
                 .padding(padding)
         ) {
+            // v2.8.17: post-restart auto-run — the fresh process runs
+            // the profile named by the restart intent, once profiles
+            // have loaded from Room; the flag stops a re-run on
+            // recomposition.
+            var autoRunDone by remember { mutableStateOf(false) }
+            LaunchedEffect(autoRunProfileId, profiles) {
+                if (!autoRunDone && autoRunProfileId != null && profiles.isNotEmpty()) {
+                    autoRunDone = true
+                    profiles.find { it.id == autoRunProfileId }?.let { runProfile(it, autoRunQuery) }
+                }
+            }
             when (tab) {
                 HomeTab.PROFILES -> ProfilesTab(
                     vm = vm,
@@ -361,71 +479,7 @@ fun MainScreen(vm: ProfileViewModel) {
                     onSearchOpen = { searchOpen = it },
                     runningIds = runningIds,
                     syncingIds = syncingIds,
-                    onRun = { p ->
-                        launchFailedId = null
-                        // v2.6 smart 90% fix: before opening the browser,
-                        // re-resolve the proxy IP's CURRENT timezone +
-                        // coordinates (one ip-api call through the proxy)
-                        // and save them, so the run never uses a stale
-                        // timezone. Free US proxies sit in Mountain View
-                        // (America/Los_Angeles) while the country default
-                        // is New York — a 3-hour mismatch whoer deducts
-                        // for. On lookup failure, launch with the stored
-                        // values instead of blocking.
-                        if (p.proxyMode != "NONE" &&
-                            (p.timezoneMode == "IP" || p.geoMode == "IP")
-                        ) {
-                            syncingIds = syncingIds + p.id
-                            scope.launch {
-                                val entry = ProxyEntry(
-                                    name = p.name,
-                                    mode = p.proxyMode, host = p.proxyHost,
-                                    port = p.proxyPort, user = p.proxyUser,
-                                    pass = p.proxyPass
-                                )
-                                val loc = proxyStore.resolveLocation(entry)
-                                // v2.8.2: launch with the FRESH profile —
-                                // the old code saved the re-synced timezone
-                                // to Room but launched the browser with the
-                                // STALE profile, so whoer saw a timezone
-                                // mismatch (78% instead of ~90%).
-                                var toLaunch = p
-                                if (loc != null) {
-                                    val updated = p.copy(
-                                        timezone = if (p.timezoneMode == "IP") loc.timezone else p.timezone,
-                                        latitude = if (p.geoMode == "IP" && loc.lat != 0.0) loc.lat else p.latitude,
-                                        longitude = if (p.geoMode == "IP" && loc.lon != 0.0) loc.lon else p.longitude
-                                    )
-                                    vm.updateNow(updated)
-                                    toLaunch = updated
-                                    val saved = proxyStore.proxies.value.firstOrNull {
-                                        it.host == p.proxyHost && it.port == p.proxyPort
-                                    }
-                                    if (saved != null) {
-                                        proxyStore.update(
-                                            saved.copy(
-                                                lastIp = loc.ip, lastTimezone = loc.timezone,
-                                                lastLat = loc.lat, lastLon = loc.lon, ok = true
-                                            )
-                                        )
-                                    }
-                                }
-                                val launched = launchProfile(toLaunch)
-                                syncingIds = syncingIds - p.id
-                                if (launched) {
-                                    runningIds = runningIds + p.id
-                                    vm.markRun(p.id)
-                                }
-                            }
-                        } else {
-                            scope.launch {
-                                if (launchProfile(p)) {
-                                    runningIds = runningIds + p.id
-                                    vm.markRun(p.id)
-                                }
-                            }
-                        }
-                    },
+                    onRun = { p -> runProfile(p) },
                     onStop = { p -> stopProfile(p.id) },
                     onStopAll = { stopProfile(null) },
                     onEdit = { editing = it },
@@ -456,7 +510,7 @@ fun MainScreen(vm: ProfileViewModel) {
             title = { Text("About NovaProfile") },
             text = {
                 Text(
-                    "NovaProfile 2.8.16 Pro — original multi-profile browser.\n\n" +
+                    "NovaProfile 2.8.17 Pro — original multi-profile browser.\n\n" +
                         "• Unlimited profiles, everything free, no billing, no trial.\n" +
                         "• Per-profile cookies, proxy, user-agent, language, " +
                         "screen, WebGL and Canvas settings.\n" +
