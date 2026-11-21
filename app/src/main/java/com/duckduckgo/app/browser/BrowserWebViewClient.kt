@@ -33,6 +33,7 @@ import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import com.novaprofiles.app.util.FingerprintJs
+import com.novaprofiles.app.util.ClientHints
 import com.novaprofiles.app.util.NovaProfileSession
 import androidx.annotation.StringRes
 import androidx.annotation.UiThread
@@ -550,6 +551,9 @@ class BrowserWebViewClient @Inject constructor(
                 clientProvider?.let { provider ->
                     if (provider.shouldChangeBranding(url.toString())) {
                         provider.setOn(webView.settings, url.toString())
+                        // NovaProfile v2.8.16: keep Sec-CH-UA brands on
+                        // the profile UA (Chrome 151) — see ClientHints.
+                        ClientHints.alignToProfile(webView.settings)
                         if (openInNewTab) {
                             listener.openLinkInNewTab(url)
                         } else {
