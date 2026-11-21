@@ -245,7 +245,7 @@ class ProxyStore(context: Context) {
             val ip = conn.inputStream.bufferedReader().readText().trim()
             conn.disconnect()
             if (conn.responseCode != 200 || ip.isBlank() || !ip.contains(".")) {
-                return@withContext entry.copy(ok = false, lastMs = System.currentTimeMillis() - started)
+                return entry.copy(ok = false, lastMs = System.currentTimeMillis() - started)
             }
             // Country + timezone + coordinates lookup for that IP (also
             // through the proxy). The timezone is the v2.5 anti-detect
