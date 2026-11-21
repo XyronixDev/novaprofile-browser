@@ -452,7 +452,7 @@ fun MainScreen(vm: ProfileViewModel) {
             title = { Text("About NovaProfile") },
             text = {
                 Text(
-                    "NovaProfile 2.8.13 Pro — original multi-profile browser.\n\n" +
+                    "NovaProfile 2.8.14 Pro — original multi-profile browser.\n\n" +
                         "• Unlimited profiles, everything free, no billing, no trial.\n" +
                         "• Per-profile cookies, proxy, user-agent, language, " +
                         "screen, WebGL and Canvas settings.\n" +
@@ -1188,8 +1188,9 @@ private fun SwitchRow(label: String, checked: Boolean, onCheckedChange: (Boolean
 
 /**
  * Manual proxy form (v2.8.3): the country picker is gone (user order)
- * — the user types the proxy themselves. Protocol (Auto tries HTTP
- * first, then SOCKS5), IP + Port as separate fields, login, password.
+ * — the user types the proxy themselves. Protocol is automatic (HTTP
+ * first, then SOCKS5 — no choice to make), IP + Port as separate
+ * fields, login, password.
  * The proxy is TESTED through
  * ipify before it is applied to the draft, so a dead proxy can never
  * be saved onto a profile; the live check also resolves the proxy IP's
@@ -1205,9 +1206,6 @@ private fun ManualProxyView(
     onBack: () -> Unit
 ) {
     val savedProxies by proxyStore.proxies.collectAsState()
-    var newProtocol by remember {
-        mutableStateOf(if (current.proxyMode == "NONE") "Auto" else current.proxyMode)
-    }
     var newIp by remember {
         mutableStateOf(
             if (current.proxyMode == "NONE" || current.proxyHost.isBlank()) ""
@@ -1246,10 +1244,10 @@ private fun ManualProxyView(
         Text(
             "Type your proxy — it is tested before it is applied. " +
                 "IP and port are separate fields. Paste a full " +
-                "host:port:user:pass line and all four fields fill themselves.",
+                "host:port:user:pass line and all four fields fill themselves. " +
+                "Protocol is automatic (HTTP first, then SOCKS5).",
             color = GoGreyText
         )
-        DropDownField("Protocol", listOf("Auto", "HTTP", "SOCKS5"), newProtocol) { newProtocol = it }
         OutlinedTextField(
             value = newIp, onValueChange = { typed ->
                 // v2.8.7: a pasted line splits into the separate fields —
@@ -1333,7 +1331,10 @@ private fun ManualProxyView(
                         name = name, mode = "HTTP", host = host, port = port,
                         user = newUser.trim(), pass = newPass
                     )
-                    val modes = if (newProtocol == "Auto") listOf("HTTP", "SOCKS5") else listOf(newProtocol)
+                    // v2.8.14: no Protocol choice anymore — always Auto
+                    // (HTTP first, then SOCKS5); the user asked what the
+                    // choice was for, and it was only confusion.
+                    val modes = listOf("HTTP", "SOCKS5")
                     var checked: ProxyEntry? = null
                     for (m in modes) {
                         val attempt = proxyStore.check(base.copy(mode = m))
