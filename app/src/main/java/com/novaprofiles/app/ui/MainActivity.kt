@@ -86,6 +86,7 @@ import com.novaprofiles.app.util.ProxyEntry
 import com.novaprofiles.app.util.ProxyStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.compose.ui.Alignment
@@ -279,6 +280,10 @@ fun MainScreen(vm: ProfileViewModel, autoRunProfileId: Long? = null, autoRunQuer
      */
     fun runProfile(p: Profile, query: String? = null) {
         launchFailedId = null
+        // v2.8.19: show the card spinner from the tap until the browser
+        // opens (or fails) — in the skip path there was NO feedback at
+        // all between Play and the browser, so the restart looked dead.
+        syncingIds = syncingIds + p.id
         // v2.6 smart 90% fix: before opening the browser,
         // re-resolve the proxy IP's CURRENT timezone +
         // coordinates (one ip-api call through the proxy)
@@ -308,7 +313,6 @@ fun MainScreen(vm: ProfileViewModel, autoRunProfileId: Long? = null, autoRunQuer
         if (p.proxyMode != "NONE" &&
             (p.timezoneMode == "IP" || p.geoMode == "IP") && !alreadySynced
         ) {
-            syncingIds = syncingIds + p.id
             scope.launch {
                 try {
                     val entry = ProxyEntry(
@@ -365,9 +369,13 @@ fun MainScreen(vm: ProfileViewModel, autoRunProfileId: Long? = null, autoRunQuer
             }
         } else {
             scope.launch {
-                if (launchProfile(p, query)) {
-                    runningIds = runningIds + p.id
-                    vm.markRun(p.id)
+                try {
+                    if (launchProfile(p, query)) {
+                        runningIds = runningIds + p.id
+                        vm.markRun(p.id)
+                    }
+                } finally {
+                    syncingIds = syncingIds - p.id
                 }
             }
         }
@@ -494,10 +502,14 @@ fun MainScreen(vm: ProfileViewModel, autoRunProfileId: Long? = null, autoRunQuer
             // have loaded from Room; the flag stops a re-run on
             // recomposition.
             var autoRunDone by remember { mutableStateOf(false) }
-            LaunchedEffect(autoRunProfileId, profiles) {
-                if (!autoRunDone && autoRunProfileId != null && profiles.isNotEmpty()) {
+            // v2.8.19: load the profile DIRECTLY by id — the profiles
+            // Flow starts empty on a fresh process and only emits after
+            // Room's first query, so waiting for the list delayed the
+            // auto-run by seconds and flashed "No profiles yet".
+            LaunchedEffect(autoRunProfileId) {
+                if (!autoRunDone && autoRunProfileId != null) {
                     autoRunDone = true
-                    profiles.find { it.id == autoRunProfileId }?.let { runProfile(it, autoRunQuery) }
+                    vm.getProfile(autoRunProfileId)?.let { runProfile(it, autoRunQuery) }
                 }
             }
             when (tab) {
@@ -542,7 +554,7 @@ fun MainScreen(vm: ProfileViewModel, autoRunProfileId: Long? = null, autoRunQuer
             title = { Text("About NovaProfile") },
             text = {
                 Text(
-                    "NovaProfile 2.8.18 Pro — original multi-profile browser.\n\n" +
+                    "NovaProfile 2.8.19 Pro — original multi-profile browser.\n\n" +
                         "• Unlimited profiles, everything free, no billing, no trial.\n" +
                         "• Per-profile cookies, proxy, user-agent, language, " +
                         "screen, WebGL and Canvas settings.\n" +
@@ -643,6 +655,15 @@ private fun ProfilesTab(
     proxyEntryFor: (Profile) -> ProxyEntry? = { null }
 ) {
     Column(Modifier.fillMaxSize()) {
+        // v2.8.19: Room's flow starts empty on a fresh process and only
+        // emits after its first query — without this grace the home
+        // flashed "No profiles yet / Profile: 0" for a second on every
+        // restart, which reads as deleted profiles.
+        var showEmpty by remember { mutableStateOf(false) }
+        LaunchedEffect(Unit) {
+            delay(1500)
+            showEmpty = true
+        }
         // Account row: green avatar + name + search.
         Row(
             modifier = Modifier
@@ -713,7 +734,7 @@ private fun ProfilesTab(
         }
 
         val shown = profiles
-        if (shown.isEmpty()) {
+        if (shown.isEmpty() && showEmpty) {
             Column(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.Center,
@@ -1327,13 +1348,21 @@ private fun ManualProxyView(
                         emptyList()
                     }
                 }
-                val (imported, skipped) = proxyStore.importLines(lines)
+                val (imported, skipped, added) = proxyStore.importLines(lines)
                 importResult = if (imported == 0 && skipped == 0) {
                     "No proxies found in this file — expected host:port:user:pass lines."
                 } else if (skipped > 0) {
                     "$imported proxies imported • $skipped lines skipped (bad or already saved)"
                 } else {
                     "$imported proxies imported"
+                }
+                // v2.8.19: test the new entries in parallel — the list
+                // fills with flags + countries in seconds, no tap
+                // needed. Sequential would take ~a minute.
+                if (added.isNotEmpty()) {
+                    scope.launch {
+                        proxyStore.checkAll(added).forEach { proxyStore.update(it) }
+                    }
                 }
             }
         }
