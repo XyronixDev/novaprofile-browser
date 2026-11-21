@@ -499,8 +499,25 @@ open class BrowserActivity : DuckDuckGoActivity() {
     private suspend fun configureFlowCollectors() {
         repeatOnLifecycle(STARTED) {
             launch {
-                viewModel.tabsFlow.collectLatest {
-                    tabManager.onTabsChanged(it)
+                viewModel.tabsFlow.collectLatest { tabs ->
+                    // NovaProfile v2.8.17: tabs belong to the last
+                    // profile that used the browser. When a different
+                    // profile launches it, the flag set by the home
+                    // screen is consumed here — once, on the first
+                    // list — and the old tabs are deleted before they
+                    // render; the tab manager then seeds one fresh tab.
+                    // The flag lives in SharedPreferences (not the
+                    // intent) so a process death before the clear
+                    // still clears on the recreated browser, and a
+                    // clear already done is never repeated.
+                    if (NovaProfileSession.isTabsClearPending(this@BrowserActivity)) {
+                        NovaProfileSession.setTabsClearPending(this@BrowserActivity, false)
+                        if (tabs.isNotEmpty()) {
+                            viewModel.clearAllTabsForProfileSwitch()
+                            return@collectLatest
+                        }
+                    }
+                    tabManager.onTabsChanged(tabs)
                 }
             }
 
