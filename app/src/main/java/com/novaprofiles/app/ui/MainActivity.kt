@@ -10,9 +10,8 @@ package com.novaprofiles.app.ui
 
 import android.content.Intent
 import android.os.Bundle
-import android.view.View
-import android.view.WindowManager
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -72,17 +71,12 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
-import androidx.compose.ui.window.DialogWindowProvider
 import com.novaprofiles.app.util.ProxyEntry
 import com.novaprofiles.app.util.ProxyStore
 import kotlinx.coroutines.CoroutineScope
@@ -100,7 +94,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
-import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.ViewModelProvider
 import com.novaprofiles.app.data.Profile
 import com.novaprofiles.app.util.ProxyHelper
@@ -226,8 +219,13 @@ fun MainScreen(vm: ProfileViewModel) {
                 "Proxy apply nahi hua (${ProxyHelper.summary(p)}). Dobara try karo — browser direct nahi khola."
             return false
         }
+        // v2.8.13: ask the browser to re-load the current tab under this
+        // profile (the tab may hold a page loaded under another profile's
+        // proxy — stale IP/country on whoer).
         ctx.startActivity(
-            BrowserActivity.intent(ctx, launchSource = AppLauncher)
+            BrowserActivity.intent(ctx, launchSource = AppLauncher).apply {
+                putExtra(NovaProfileSession.EXTRA_RELOAD_TAB, true)
+            }
         )
         return true
     }
@@ -254,6 +252,43 @@ fun MainScreen(vm: ProfileViewModel) {
     // Fingerprint Lab (v2.0 Pro) — full-screen check for one profile.
     labProfile?.let { lp ->
         FingerprintLabScreen(profile = lp, onBack = { labProfile = null })
+        return
+    }
+
+    // v2.7.2: the next auto-numbered name for a new profile — the max
+    // existing "Profile N" + 1, so a deleted number is never reused.
+    val nextProfileName = run {
+        val max = profiles.mapNotNull {
+            Regex("""^Profile (\d+)$""").find(it.name)?.groupValues?.getOrNull(1)?.toIntOrNull()
+        }.maxOrNull() ?: 0
+        "Profile ${max + 1}"
+    }
+
+    // Add/Edit profile page — v2.8.13: a full-screen page in THIS
+    // activity, not a Dialog. The Dialog had its own window whose status
+    // bar stayed grey through two fixes (v2.8.7 SideEffect read a null
+    // parent before attach; v2.8.12 attach listener never fired on the
+    // dialog's parent). In the activity window the bar is already white
+    // (onCreate). Back press cancels, like the Dialog's dismiss.
+    if (editing != null || creating) {
+        EditorScreen(
+            initial = editing,
+            nextProfileName = nextProfileName,
+            onSave = { p ->
+                if (editing != null) vm.update(p) else vm.create(p)
+                editing = null
+                creating = false
+            },
+            onCancel = { editing = null; creating = false },
+            onCheckProxy = { p -> vm.checkProxy(p, "https://api.ipify.org") },
+            proxyCheckResult = proxyCheck,
+            onClearNotice = { vm.clearNotices() },
+            // v2.8.2: Delete + Check fingerprint moved here from the
+            // card's 3-dot menu (menu removed, user order).
+            onDelete = { pendingDelete = it },
+            onCheckFingerprint = { labProfile = it },
+            proxyStore = proxyStore
+        )
         return
     }
 
@@ -410,36 +445,6 @@ fun MainScreen(vm: ProfileViewModel) {
         }
     }
 
-    // Add/Edit profile page (v2.5 sheet, v2.8.6 full page — the sheet
-    // blinked on downward swipes) — overlays the home, like GoLogin.
-    // v2.7.2: the next auto-numbered name for a new profile — the max
-    // existing "Profile N" + 1, so a deleted number is never reused.
-    val nextProfileName = run {
-        val max = profiles.mapNotNull {
-            Regex("""^Profile (\d+)$""").find(it.name)?.groupValues?.getOrNull(1)?.toIntOrNull()
-        }.maxOrNull() ?: 0
-        "Profile ${max + 1}"
-    }
-    if (editing != null || creating) {
-        EditorScreen(
-            initial = editing,
-            nextProfileName = nextProfileName,
-            onSave = { p ->
-                if (editing != null) vm.update(p) else vm.create(p)
-                editing = null
-                creating = false
-            },
-            onCancel = { editing = null; creating = false },
-            onCheckProxy = { p -> vm.checkProxy(p, "https://api.ipify.org") },
-            proxyCheckResult = proxyCheck,
-            onClearNotice = { vm.clearNotices() },
-            // v2.8.2: Delete + Check fingerprint moved here from the
-            // card's 3-dot menu (menu removed, user order).
-            onDelete = { pendingDelete = it },
-            onCheckFingerprint = { labProfile = it },
-            proxyStore = proxyStore
-        )
-    }
 
     if (showAbout) {
         AlertDialog(
@@ -447,7 +452,7 @@ fun MainScreen(vm: ProfileViewModel) {
             title = { Text("About NovaProfile") },
             text = {
                 Text(
-                    "NovaProfile 2.8.12 Pro — original multi-profile browser.\n\n" +
+                    "NovaProfile 2.8.13 Pro — original multi-profile browser.\n\n" +
                         "• Unlimited profiles, everything free, no billing, no trial.\n" +
                         "• Per-profile cookies, proxy, user-agent, language, " +
                         "screen, WebGL and Canvas settings.\n" +
@@ -973,37 +978,13 @@ fun EditorScreen(
     // v2.8.6: full-screen page instead of a bottom sheet — a downward
     // swipe on the sheet dragged the whole page down and snapped it back
     // ("blinking up down"); on a page the swipe scrolls the form.
-    Dialog(
-        onDismissRequest = onCancel,
-        properties = DialogProperties(
-            usePlatformDefaultWidth = false,
-            dismissOnBackPress = true,
-            dismissOnClickOutside = false
-        )
-    ) {
-        // v2.8.12: a Dialog has its own window — its status bar showed grey
-        // (transparent over the dimmed home). The v2.8.7 SideEffect read
-        // LocalView.current.parent during the first composition, when the
-        // dialog view is not attached yet, so the window was null and
-        // nothing was applied. Apply on attach instead (and at once if
-        // the view is already attached).
-        val dialogView = LocalView.current
-        DisposableEffect(dialogView) {
-            fun applyBar() {
-                (dialogView.parent as? DialogWindowProvider)?.window?.let {
-                    it.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS)
-                    it.statusBarColor = android.graphics.Color.WHITE
-                    WindowInsetsControllerCompat(it, it.decorView).isAppearanceLightStatusBars = true
-                }
-            }
-            val listener = object : View.OnAttachStateChangeListener {
-                override fun onViewAttachedToWindow(v: View) = applyBar()
-                override fun onViewDetachedFromWindow(v: View) {}
-            }
-            dialogView.addOnAttachStateChangeListener(listener)
-            applyBar()
-            onDispose { dialogView.removeOnAttachStateChangeListener(listener) }
-        }
+    // v2.8.13: NO Dialog — the editor renders in the activity window,
+    // so the status bar is the activity's white bar (see the MainScreen
+    // note). Two dialog-window fixes failed (v2.8.7 SideEffect read a
+    // null parent before attach; v2.8.12 attach listener never fired on
+    // the dialog's parent). Back press cancels, like the Dialog's
+    // dismissOnBackPress.
+    BackHandler { onCancel() }
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -1147,7 +1128,6 @@ fun EditorScreen(
             }
         }
         }
-    }
 }
 
 /** A bordered row with a label, optional sub-text and a chevron. */
