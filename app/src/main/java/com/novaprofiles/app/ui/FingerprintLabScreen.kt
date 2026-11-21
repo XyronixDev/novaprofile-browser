@@ -105,6 +105,21 @@ fun FingerprintLabScreen(profile: Profile, onBack: () -> Unit) {
 
     val rows: List<LabRow> = result?.let { r ->
         val expectedTz = if (profile.timezone == "Auto") realTz else profile.timezone
+        // v2.8.12: expected vs real timezone OFFSET in minutes (the value
+        // getTimezoneOffset() returns) and the GMT strings for the date
+        // string check, all from the same fixed-offset formula as
+        // FingerprintJs (negate Java's local-minus-UTC ms, to minutes).
+        fun tzOffsetMin(zoneId: String): Int =
+            -java.util.TimeZone.getTimeZone(zoneId).getOffset(System.currentTimeMillis()) / 60000
+        fun gmtString(offsetMin: Int): String {
+            val s = if (offsetMin <= 0) "+" else "-"
+            val a = kotlin.math.abs(offsetMin)
+            return "GMT" + s + (a / 60).toString().padStart(2, '0') + (a % 60).toString().padStart(2, '0')
+        }
+        val realTzOffsetMin = tzOffsetMin(realTz)
+        val expectedTzOffsetMin = if (profile.timezone == "Auto") realTzOffsetMin else tzOffsetMin(profile.timezone)
+        val expectedGmt = gmtString(expectedTzOffsetMin)
+        val realGmt = gmtString(realTzOffsetMin)
         val expectedScreen = "${profile.screenWidth}x${profile.screenHeight}"
         listOf(
             LabRow(
@@ -130,6 +145,34 @@ fun FingerprintLabScreen(profile: Profile, onBack: () -> Unit) {
                 when {
                     r.timezone == expectedTz && expectedTz != realTz -> true
                     r.timezone == realTz && expectedTz != realTz -> false
+                    else -> null
+                }
+            ),
+            LabRow(
+                "Timezone offset",
+                (r.tzOffset.ifBlank { "(empty)" }) + " min",
+                when {
+                    r.tzOffset == expectedTzOffsetMin.toString() && expectedTzOffsetMin != realTzOffsetMin -> "Spoofed"
+                    r.tzOffset == realTzOffsetMin.toString() && expectedTzOffsetMin != realTzOffsetMin -> "Exposed"
+                    else -> "As set"
+                },
+                when {
+                    r.tzOffset == expectedTzOffsetMin.toString() && expectedTzOffsetMin != realTzOffsetMin -> true
+                    r.tzOffset == realTzOffsetMin.toString() && expectedTzOffsetMin != realTzOffsetMin -> false
+                    else -> null
+                }
+            ),
+            LabRow(
+                "Date string",
+                r.dateString.ifBlank { "(empty)" },
+                when {
+                    r.dateString.contains(expectedGmt) && !r.dateString.contains(realGmt) && expectedGmt != realGmt -> "Spoofed"
+                    r.dateString.contains(realGmt) && expectedGmt != realGmt -> "Exposed"
+                    else -> "As set"
+                },
+                when {
+                    r.dateString.contains(expectedGmt) && !r.dateString.contains(realGmt) && expectedGmt != realGmt -> true
+                    r.dateString.contains(realGmt) && expectedGmt != realGmt -> false
                     else -> null
                 }
             ),
