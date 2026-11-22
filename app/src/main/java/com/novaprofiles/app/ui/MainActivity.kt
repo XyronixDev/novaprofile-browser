@@ -272,8 +272,13 @@ fun MainScreen(vm: ProfileViewModel, autoRunProfileId: Long? = null, autoRunQuer
                 // Show it on the card instead of looping.
                 if (NovaProfileSession.restartedProfileId(ctx) == p.id) {
                     launchFailedId = p.id
+                    // v2.8.21: show the exact recorded reason — the
+                    // user films the card, and the reason names the
+                    // cause instead of another round of guessing.
+                    val reason = NovaProfileSession.lastSuffixError(ctx)
                     vm.proxyCheckResult.value =
-                        "Browser nahi khula — data folder lock hai. App band karke dobara kholo."
+                        "Browser nahi khula — data folder lock hai. App band karke dobara kholo." +
+                            (if (reason != null) " ($reason)" else "")
                     return false
                 }
                 NovaProfileSession.restartAppForProfile(ctx, p.id, query)
@@ -579,7 +584,7 @@ fun MainScreen(vm: ProfileViewModel, autoRunProfileId: Long? = null, autoRunQuer
             title = { Text("About NovaProfile") },
             text = {
                 Text(
-                    "NovaProfile 2.8.20 Pro — original multi-profile browser.\n\n" +
+                    "NovaProfile 2.8.21 Pro — original multi-profile browser.\n\n" +
                         "• Unlimited profiles, everything free, no billing, no trial.\n" +
                         "• Per-profile cookies, proxy, user-agent, language, " +
                         "screen, WebGL and Canvas settings.\n" +
