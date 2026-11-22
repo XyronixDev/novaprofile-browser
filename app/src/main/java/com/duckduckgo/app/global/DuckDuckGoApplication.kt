@@ -23,6 +23,7 @@ import androidx.lifecycle.ProcessLifecycleOwner
 import com.duckduckgo.app.browser.BuildConfig
 import com.duckduckgo.app.di.AppComponent
 import com.duckduckgo.app.di.AppComponentFactory
+import com.novaprofiles.app.util.NovaProfileSession
 import com.duckduckgo.app.di.AppCoroutineScope
 import com.duckduckgo.app.lifecycle.MainProcessLifecycleObserver
 import com.duckduckgo.app.lifecycle.PirProcessLifecycleObserver
@@ -84,6 +85,21 @@ open class DuckDuckGoApplication : HasInjector, MultiProcessApplication() {
     open lateinit var appComponent: AppComponent
 
     override fun onMainProcessCreate() {
+        // v2.8.21 (NovaProfile): lock the WebView data dir for the
+        // pending / last-run profile HERE, before any DI or plugin
+        // runs. Android lets setDataDirectorySuffix succeed only
+        // while the WebView provider is still uninitialised — once
+        // anything loads it (a WebView, CookieManager, or a
+        // WebViewFeature check), the call throws for the rest of the
+        // process, and no later lock (MainActivity.onCreate was too
+        // late — v2.8.20 proved it) can recover it. The id comes
+        // from prefs: the restart writes its target synchronously,
+        // and the last-run profile covers a plain cold start.
+        val suffixProfileId = NovaProfileSession.pendingSuffixProfileId(this)
+            ?: NovaProfileSession.lastTabProfileId(this)
+        if (suffixProfileId != null) {
+            NovaProfileSession.setSuffixEarly(this, suffixProfileId)
+        }
         configureLogging()
         logcat { "onMainProcessCreate $currentProcessName with pid=${android.os.Process.myPid()}" }
 
