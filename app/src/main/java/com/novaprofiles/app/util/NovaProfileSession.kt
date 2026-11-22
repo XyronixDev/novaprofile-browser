@@ -32,6 +32,8 @@ object NovaProfileSession {
     private const val KEY_RUNNING_PROFILE_ID = "running_profile_id"
     private const val KEY_LAST_TAB_PROFILE_ID = "last_tab_profile_id"
     private const val KEY_TABS_CLEAR_PENDING = "tabs_clear_pending"
+    private const val KEY_PENDING_SUFFIX_PROFILE_ID = "pending_suffix_profile_id"
+    private const val KEY_RESTARTED_PROFILE_ID = "restarted_profile_id"
 
     // v2.8.17: after a profile-switch restart, the fresh process
     // auto-runs the profile named here (plus an optional query, e.g.
@@ -70,6 +72,62 @@ object NovaProfileSession {
     }
 
     /**
+     * v2.8.20: the profile id a profile-switch restart is for, written
+     * with commit() (synchronous) BEFORE the process is killed —
+     * apply() may never flush before the kill. The fresh process reads
+     * it in MainActivity.onCreate and locks the data dir before
+     * anything can create a WebView.
+     */
+    fun pendingSuffixProfileId(context: Context): Long? {
+        val id = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getLong(KEY_PENDING_SUFFIX_PROFILE_ID, -1L)
+        return if (id > 0) id else null
+    }
+
+    fun setPendingSuffixProfileId(context: Context, id: Long?) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putLong(KEY_PENDING_SUFFIX_PROFILE_ID, id ?: -1L).commit()
+    }
+
+    /**
+     * v2.8.20: the profile id the LAST restart was for. If prepare()
+     * still returns SUFFIX_FAILED for this id, restarting again would
+     * loop forever (white flash + "Profile: 0") — the caller must show
+     * the failure on the card instead. Cleared on any successful
+     * prepare(), so a stale marker can never block a later restart.
+     */
+    fun restartedProfileId(context: Context): Long? {
+        val id = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getLong(KEY_RESTARTED_PROFILE_ID, -1L)
+        return if (id > 0) id else null
+    }
+
+    fun setRestartedProfileId(context: Context, id: Long?) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putLong(KEY_RESTARTED_PROFILE_ID, id ?: -1L).commit()
+    }
+
+    /**
+     * v2.8.20: lock the WebView data dir for a profile at process
+     * start — MainActivity.onCreate calls this BEFORE setContent.
+     * Application.onCreate creates no WebView (verified in
+     * DuckDuckGoApplication/MultiProcessApplication), so this is the
+     * earliest point in the process and nothing can have poisoned
+     * the suffix yet. Returns false only if a WebView already exists
+     * (which here means something created one during startup).
+     */
+    fun setSuffixEarly(context: Context, profileId: Long): Boolean {
+        if (suffixProfileId == profileId) return true
+        return try {
+            WebView.setDataDirectorySuffix("p$profileId")
+            suffixProfileId = profileId
+            true
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    /**
      * Restart the whole app process so a profile gets its OWN WebView
      * data dir (own cookies/storage). Android allows exactly one data
      * dir per process, set before the first WebView — once another
@@ -79,6 +137,11 @@ object NovaProfileSession {
      * stays on disk and comes back when that profile runs again.
      */
     fun restartAppForProfile(context: Context, profileId: Long, query: String? = null) {
+        // v2.8.20: persist the restart target synchronously — the fresh
+        // process locks the data dir for it in onCreate, and the
+        // anti-loop guard reads the restarted marker.
+        setPendingSuffixProfileId(context, profileId)
+        setRestartedProfileId(context, profileId)
         val restart = context.packageManager.getLaunchIntentForPackage(context.packageName)?.apply {
             addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK or Intent.FLAG_ACTIVITY_NEW_TASK)
             putExtra(EXTRA_AUTO_RUN_PROFILE_ID, profileId)
@@ -167,6 +230,10 @@ object NovaProfileSession {
         if (needsProxy && !applied) return PrepareResult.PROXY_FAILED
         if (!suffixOk) return PrepareResult.SUFFIX_FAILED
         setRunningProfile(context, profile)
+        // v2.8.20: a successful prepare proves the restart worked — a
+        // stale restarted marker must never block a later restart.
+        setRestartedProfileId(context, null)
+        setPendingSuffixProfileId(context, null)
         return PrepareResult.OK
     }
 }
