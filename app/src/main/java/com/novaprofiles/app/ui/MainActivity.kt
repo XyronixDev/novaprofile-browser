@@ -134,6 +134,21 @@ class MainActivity : ComponentActivity() {
         val autoRunQuery = intent.getStringExtra(NovaProfileSession.EXTRA_AUTO_RUN_QUERY)
         intent.removeExtra(NovaProfileSession.EXTRA_AUTO_RUN_PROFILE_ID)
         intent.removeExtra(NovaProfileSession.EXTRA_AUTO_RUN_QUERY)
+        // v2.8.20: lock the WebView data dir at process start, before
+        // setContent/composition can create any WebView. The restart
+        // writes its target to prefs (commit); the auto-run intent
+        // carries it too; the last-run profile covers a plain cold
+        // start, so tapping the same profile again never needs a
+        // restart. Without this, the auto-run's prepare() could hit a
+        // suffix poisoned during startup and restart forever — the
+        // white flash + "Profile: 0" loop the user filmed.
+        val suffixProfileId = autoRunProfileId
+            ?: NovaProfileSession.pendingSuffixProfileId(this)
+            ?: NovaProfileSession.lastTabProfileId(this)
+        if (suffixProfileId != null) {
+            NovaProfileSession.setSuffixEarly(this, suffixProfileId)
+            NovaProfileSession.setPendingSuffixProfileId(this, null)
+        }
         setContent {
             NovaProfileTheme {
                 MainScreen(vm = vm, autoRunProfileId = autoRunProfileId, autoRunQuery = autoRunQuery)
@@ -251,6 +266,16 @@ fun MainScreen(vm: ProfileViewModel, autoRunProfileId: Long? = null, autoRunQuer
                 return false
             }
             NovaProfileSession.PrepareResult.SUFFIX_FAILED -> {
+                // v2.8.20: anti-loop — if we ALREADY restarted for this
+                // profile and the suffix is STILL locked, restarting
+                // again would loop forever (white flash + "Profile: 0").
+                // Show it on the card instead of looping.
+                if (NovaProfileSession.restartedProfileId(ctx) == p.id) {
+                    launchFailedId = p.id
+                    vm.proxyCheckResult.value =
+                        "Browser nahi khula — data folder lock hai. App band karke dobara kholo."
+                    return false
+                }
                 NovaProfileSession.restartAppForProfile(ctx, p.id, query)
                 return false
             }
@@ -554,7 +579,7 @@ fun MainScreen(vm: ProfileViewModel, autoRunProfileId: Long? = null, autoRunQuer
             title = { Text("About NovaProfile") },
             text = {
                 Text(
-                    "NovaProfile 2.8.19 Pro — original multi-profile browser.\n\n" +
+                    "NovaProfile 2.8.20 Pro — original multi-profile browser.\n\n" +
                         "• Unlimited profiles, everything free, no billing, no trial.\n" +
                         "• Per-profile cookies, proxy, user-agent, language, " +
                         "screen, WebGL and Canvas settings.\n" +
@@ -693,7 +718,7 @@ private fun ProfilesTab(
                 )
                 // v2.8.18: profile count under the app name, as asked.
                 Text(
-                    "Profile: ${profiles.size}",
+                    if (showEmpty) "Profile: ${profiles.size}" else "",
                     color = GoGreyText,
                     fontSize = 13.sp,
                     maxLines = 1
