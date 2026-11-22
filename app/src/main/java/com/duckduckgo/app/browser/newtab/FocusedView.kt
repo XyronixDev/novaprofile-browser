@@ -50,7 +50,13 @@ class FocusedView @JvmOverloads constructor(
     fun show(isLogoVisible: Boolean, browserMode: BrowserMode) {
         val isFireMode = browserMode == BrowserMode.FIRE
         binding.focusedFireEmptyState.root.isVisible = isFireMode
-        binding.focusedLogo.isVisible = isLogoVisible && !isFireMode
+        // NovaProfile v2.8.23: the DuckDuckGo logo never shows on the
+        // focused (omnibox) view. The user saw the duck here in
+        // v2.8.22 when the URL bar was focused — the v2.8.14 fix only
+        // hid the new-tab Lottie, not this one (BrowserTabFragment
+        // passes isLogoVisible = !hasFavorites, so a fresh tab with no
+        // favorites always showed it).
+        binding.focusedLogo.isVisible = false
         binding.focusedFavourites.isVisible = !isLogoVisible && !isFireMode
         this.show()
     }
