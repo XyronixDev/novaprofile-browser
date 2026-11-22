@@ -1060,6 +1060,23 @@ open class BrowserActivity : DuckDuckGoActivity() {
             }
 
             viewModel.tabs.observe(this) {
+                // NovaProfile v2.8.22: the tab-clear flag set by the
+                // home screen when a different profile takes over.
+                // The Flow-path hook (configureFlowCollectors) only
+                // runs when the swiping-tabs remote flag is on — it
+                // defaults FALSE for external builds, so on the
+                // user's phone it NEVER ran and the old profile's
+                // tabs survived every switch. This LiveData path is
+                // the one that actually runs, so the flag is consumed
+                // here: delete the old tabs before they render, and
+                // the empty list that follows seeds one fresh tab.
+                if (NovaProfileSession.isTabsClearPending(this)) {
+                    NovaProfileSession.setTabsClearPending(this, false)
+                    if (!it.isNullOrEmpty()) {
+                        viewModel.clearAllTabsForProfileSwitch()
+                        return@observe
+                    }
+                }
                 clearStaleTabs(it)
                 removeOldTabs()
                 lifecycleScope.launch { viewModel.onTabsUpdated(it) }
