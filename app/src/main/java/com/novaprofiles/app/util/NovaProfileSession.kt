@@ -68,8 +68,12 @@ object NovaProfileSession {
             .getBoolean(KEY_TABS_CLEAR_PENDING, false)
 
     fun setTabsClearPending(context: Context, pending: Boolean) {
+        // v2.8.22: commit(), not apply() — the browser may be
+        // started right after a process restart, and a kill before
+        // the async flush would lose the flag and leave the old
+        // profile's tabs in place.
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
-            .putBoolean(KEY_TABS_CLEAR_PENDING, pending).apply()
+            .putBoolean(KEY_TABS_CLEAR_PENDING, pending).commit()
     }
 
     /**
