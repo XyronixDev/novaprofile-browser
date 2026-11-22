@@ -34,7 +34,6 @@
             android:contentDescription="@string/duckDuckGoLogoDescription"
             android:maxWidth="180dp"
             android:maxHeight="180dp"
-            app:srcCompat="@drawable/logo_full"
             android:visibility="gone" />
 
         <include
