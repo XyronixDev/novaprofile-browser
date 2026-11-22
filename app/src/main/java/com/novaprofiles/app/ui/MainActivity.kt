@@ -584,7 +584,7 @@ fun MainScreen(vm: ProfileViewModel, autoRunProfileId: Long? = null, autoRunQuer
             title = { Text("About NovaProfile") },
             text = {
                 Text(
-                    "NovaProfile 2.8.22 Pro — original multi-profile browser.\n\n" +
+                    "NovaProfile 2.8.23 Pro — original multi-profile browser.\n\n" +
                         "• Unlimited profiles, everything free, no billing, no trial.\n" +
                         "• Per-profile cookies, proxy, user-agent, language, " +
                         "screen, WebGL and Canvas settings.\n" +
