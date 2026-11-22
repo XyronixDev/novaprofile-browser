@@ -62,11 +62,16 @@ jobs:
           # future version bump cannot break the path again.
           path: app/build/outputs/apk/fdroid/release/*.apk
 
+      - name: List bundle outputs (diagnostic)
+        run: |
+          echo "--- app/build/outputs/bundle ---"
+          find app/build/outputs/bundle -type f | head -20
+
       - name: Upload release AAB
         uses: actions/upload-artifact@v4
         with:
           name: NovaProfile-release-aab
-          path: app/build/outputs/bundle/fdroid/release/*.aab
+          path: app/build/outputs/bundle/**/*.aab
 
       - name: Create Asana task when workflow failed on push to develop
         if: ${{ failure() && github.ref == 'refs/heads/develop' && github.event_name == 'push' }}
