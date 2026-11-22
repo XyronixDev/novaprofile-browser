@@ -34,6 +34,7 @@ object NovaProfileSession {
     private const val KEY_TABS_CLEAR_PENDING = "tabs_clear_pending"
     private const val KEY_PENDING_SUFFIX_PROFILE_ID = "pending_suffix_profile_id"
     private const val KEY_RESTARTED_PROFILE_ID = "restarted_profile_id"
+    private const val KEY_LAST_SUFFIX_ERROR = "last_suffix_error"
 
     // v2.8.17: after a profile-switch restart, the fresh process
     // auto-runs the profile named here (plus an optional query, e.g.
@@ -107,6 +108,16 @@ object NovaProfileSession {
             .putLong(KEY_RESTARTED_PROFILE_ID, id ?: -1L).commit()
     }
 
+    /** v2.8.21: the exact exception the last suffix call died with. */
+    fun lastSuffixError(context: Context): String? =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getString(KEY_LAST_SUFFIX_ERROR, null)
+
+    fun setLastSuffixError(context: Context, error: String?) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putString(KEY_LAST_SUFFIX_ERROR, error).apply()
+    }
+
     /**
      * v2.8.20: lock the WebView data dir for a profile at process
      * start — MainActivity.onCreate calls this BEFORE setContent.
@@ -123,6 +134,11 @@ object NovaProfileSession {
             suffixProfileId = profileId
             true
         } catch (e: Exception) {
+            // v2.8.21: keep the exact reason — the card notice shows it,
+            // so a failure on the phone names its own cause instead of
+            // guessing. AOSP throws only when the WebView provider is
+            // already initialised in this process.
+            setLastSuffixError(context, e.javaClass.simpleName + ": " + (e.message ?: ""))
             false
         }
     }
@@ -212,9 +228,11 @@ object NovaProfileSession {
                 WebView.setDataDirectorySuffix("p${profile.id}")
                 suffixProfileId = profile.id
             } catch (e: Exception) {
-                // Suffix already set by an earlier profile in this
-                // process, or a WebView already exists without one:
-                // storage is shared with that profile in this process.
+                // v2.8.21: a WebView (or anything that loads the WebView
+                // provider) already ran in this process, so the suffix
+                // can no longer be set — AOSP throws once the provider
+                // is initialised. Keep the exact reason for the card.
+                setLastSuffixError(context, e.javaClass.simpleName + ": " + (e.message ?: ""))
                 suffixOk = false
             }
         }
