@@ -40,10 +40,10 @@ jobs:
         with:
           cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
 
-      - name: Assemble F-Droid release apk
+      - name: Assemble F-Droid release apk + bundle
         env:
           MALICIOUS_SITE_PROTECTION_AUTH_TOKEN: ${{ secrets.MALICIOUS_SITE_PROTECTION_AUTH_TOKEN }}
-        run: ./gradlew assembleFdroidRelease
+        run: ./gradlew assembleFdroidRelease bundleFdroidRelease
 
       - name: List APK outputs (diagnostic)
         run: |
@@ -61,6 +61,12 @@ jobs:
           # APK after the app + version, not the module). Glob so a
           # future version bump cannot break the path again.
           path: app/build/outputs/apk/fdroid/release/*.apk
+
+      - name: Upload release AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: NovaProfile-release-aab
+          path: app/build/outputs/bundle/fdroid/release/*.aab
 
       - name: Create Asana task when workflow failed on push to develop
         if: ${{ failure() && github.ref == 'refs/heads/develop' && github.event_name == 'push' }}
