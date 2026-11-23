@@ -23,7 +23,7 @@ val GoHeaderDark = Color(0xFF0A3D2E)
 val GoHeaderWave = Color(0xFF0E5C40)
 val GoTitle = Color(0xFF101828)
 val GoGold = Color(0xFFFFC531)
-val GoContentBg = Color(0xFFF4FAF7)
+val GoContentBg = Color(0xFFEDF3FA)
 
 private val NovaLightColors = lightColorScheme(
     primary = GoGreen,
