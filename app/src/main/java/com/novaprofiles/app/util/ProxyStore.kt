@@ -287,67 +287,6 @@ class ProxyStore(context: Context) {
         }
 
     /**
-     * v2.7: Webshare proxies via the official API. Free plan = 10 stable
-     * proxies + 1GB/month, renewing monthly; paid ($2.99/mo) is optional
-     * and never required — a free-plan key works exactly the same way.
-     * The user creates an API key in the Webshare dashboard
-     * (Integrations -> API Keys) and pastes it into Settings; the key is
-     * stored only on this phone (DataStore) and is sent only to
-     * Webshare's own API. Direct mode: connect to proxy_address + port
-     * with the per-proxy username/password the API returns. Defensive
-     * parsing: every field is opt* with fallbacks, so an API shape
-     * change degrades to an empty list, never a crash — and a wrong key
-     * (non-200) also returns empty, which the UI reports as "check the
-     * key". Free Webshare proxies are shared datacenter IPs: stable,
-     * but the whoer ~90% ceiling still applies (residential needed for
-     * 100%) and heavy use eats the 1GB cap.
-     */
-    suspend fun fetchWebshareProxies(apiKey: String): List<ProxyEntry> =
-        withContext(Dispatchers.IO) {
-            if (apiKey.isBlank()) return@withContext emptyList()
-            try {
-                val conn = URL(
-                    "https://proxy.webshare.io/api/v2/proxy/list/" +
-                        "?mode=direct&page=1&page_size=100"
-                ).openConnection() as HttpURLConnection
-                conn.connectTimeout = 15_000
-                conn.readTimeout = 15_000
-                conn.setRequestProperty("Authorization", "Token ${apiKey.trim()}")
-                conn.setRequestProperty("Accept", "application/json")
-                if (conn.responseCode != 200) {
-                    conn.disconnect()
-                    return@withContext emptyList()
-                }
-                val body = conn.inputStream.bufferedReader().readText()
-                conn.disconnect()
-                val arr = JSONObject(body).optJSONArray("results")
-                    ?: return@withContext emptyList()
-                (0 until arr.length()).mapNotNull { i ->
-                    val o = arr.optJSONObject(i) ?: return@mapNotNull null
-                    val host = o.optString("proxy_address").ifBlank { o.optString("ip") }
-                    val port = o.optInt("port", 0)
-                    if (host.isBlank() || port <= 0) return@mapNotNull null
-                    if (!o.optBoolean("valid", true)) return@mapNotNull null
-                    val cc = o.optString("country_code").uppercase()
-                    val label = if (cc.isBlank()) "" else Profile.countrySettings(cc).label
-                    ProxyEntry(
-                        name = "Webshare • " + label.ifBlank { host },
-                        // Dashboard quick-start uses HTTP; the same port
-                        // also speaks SOCKS5, but HTTP is the safe default.
-                        mode = "HTTP",
-                        host = host,
-                        port = port,
-                        user = o.optString("username"),
-                        pass = o.optString("password"),
-                        country = if (cc.isBlank()) "" else "$cc • $label"
-                    )
-                }
-            } catch (e: Exception) {
-                emptyList()
-            }
-        }
-
-    /**
      * Parallel fastest-working test (v2.3, rebuilt v2.4): tests all
      * [candidates] at once and returns the FASTEST one that actually
      * proxies. v2.3 stopped at the FIRST working proxy — which could be
