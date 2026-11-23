@@ -133,6 +133,8 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
 import com.duckduckgo.app.browser.BrowserActivity
 import com.duckduckgo.app.browser.mode.AppLauncher
+import com.novaprofiles.app.util.DirectConnection
+import com.novaprofiles.app.util.DirectInfo
 import com.novaprofiles.app.util.NovaProfileSession
 import com.novaprofiles.app.util.ProxyHelper
 
@@ -185,33 +187,22 @@ class MainActivity : ComponentActivity() {
 }
 
 /**
- * v2.7.2: the card flag comes from the profile's stored proxy country
- * first — that is the real proxy. Language is only a fallback (old
- * profiles created before proxyCountry existed).
+ * The card flag. The stored proxy country is the real proxy; a Direct
+ * profile shows the live-detected connection country. There is no
+ * language fallback anywhere — the language defaults to en-US, so
+ * guessing from it painted every direct profile with the US flag.
+ * Unknown stays the globe, never an invented country.
  */
-fun countryOf(profile: Profile): Pair<String, String> {
+fun countryOf(profile: Profile, direct: DirectInfo? = null): Pair<String, String> {
     val pc = profile.proxyCountry.trim().uppercase()
     if (pc.length == 2) {
         return Profile.flagEmoji(pc) to pc
     }
-    return when {
-        profile.language.startsWith("en-GB") -> "🇬🇧" to "GB"
-        profile.language.startsWith("en-CA") -> "🇨🇦" to "CA"
-        profile.language.startsWith("fr") -> "🇫🇷" to "FR"
-        profile.language.startsWith("de") -> "🇩🇪" to "DE"
-        profile.language.startsWith("es") -> "🇪🇸" to "ES"
-        profile.language.startsWith("pt") -> "🇧🇷" to "BR"
-        profile.language.startsWith("it") -> "🇮🇹" to "IT"
-        profile.language.startsWith("nl") -> "🇳🇱" to "NL"
-        profile.language.startsWith("ja") -> "🇯🇵" to "JP"
-        profile.language.startsWith("ko") -> "🇰🇷" to "KR"
-        profile.language.startsWith("zh") -> "🇨🇳" to "CN"
-        profile.language.startsWith("ru") -> "🇷🇺" to "RU"
-        profile.language.startsWith("pl") -> "🇵🇱" to "PL"
-        profile.language.startsWith("tr") -> "🇹🇷" to "TR"
-        profile.language.startsWith("ar") -> "🇸🇦" to "SA"
-        else -> "🇺🇸" to "US"
+    if (profile.proxyMode == "NONE") {
+        val code = direct?.countryCode?.uppercase().orEmpty()
+        return if (code.length == 2) Profile.flagEmoji(code) to code else "🌐" to ""
     }
+    return "🌐" to ""
 }
 
 /**
@@ -283,9 +274,13 @@ fun cityFromTimezone(tz: String): String = when (tz) {
     else -> tz.substringAfter("/", tz).replace("_", " ")
 }
 
-/** v2.8.24: (city, country label) for a profile card. */
-fun profileCityCountry(profile: Profile): Pair<String, String> {
-    val (_, code) = countryOf(profile)
+/** (city, country label) for a profile card. A Direct profile shows the detected connection city and country; undetected it reads Unknown. */
+fun profileCityCountry(profile: Profile, direct: DirectInfo? = null): Pair<String, String> {
+    if (profile.proxyMode == "NONE") {
+        return direct?.city.orEmpty() to (direct?.countryName ?: "Unknown")
+    }
+    val (_, code) = countryOf(profile, direct)
+    if (code.isEmpty()) return cityFromTimezone(profile.timezone) to "Unknown"
     return cityFromTimezone(profile.timezone) to Profile.countrySettings(code).label
 }
 
@@ -411,6 +406,21 @@ fun MainScreen(vm: ProfileViewModel, autoRunProfileId: Long? = null, autoRunQuer
     var showAbout by remember { mutableStateOf(false) }
     var pendingDelete by remember { mutableStateOf<Profile?>(null) }
     var filter by remember { mutableStateOf(ProfileFilter.ALL) }
+    // The device's own connection, detected live once at startup and
+    // cached — Direct cards read their flag, country and IP from here.
+    var directInfo by remember { mutableStateOf(DirectConnection.cached(ctx)) }
+    var directDetecting by remember { mutableStateOf(false) }
+
+    fun refreshDirect() {
+        if (directDetecting) return
+        directDetecting = true
+        scope.launch {
+            DirectConnection.detect(ctx)?.let { directInfo = it }
+            directDetecting = false
+        }
+    }
+
+    LaunchedEffect(Unit) { refreshDirect() }
 
     /** Sessions (v2.0 Pro): tell a running browser to stop itself. */
     fun stopProfile(id: Long?) {
@@ -630,7 +640,19 @@ fun MainScreen(vm: ProfileViewModel, autoRunProfileId: Long? = null, autoRunQuer
         } else {
             scope.launch {
                 try {
-                    if (launchProfile(p, query)) {
+                    // Direct profiles carry the detected connection
+                    // timezone when it is known, so the run never uses
+                    // the "Auto" placeholder. Detection already ran at
+                    // startup, so this never waits on the network.
+                    var toLaunch = p
+                    if (p.proxyMode == "NONE" && p.timezoneMode == "IP") {
+                        val tz = directInfo?.timezone.orEmpty()
+                        if (tz.isNotBlank() && tz != p.timezone) {
+                            toLaunch = p.copy(timezone = tz)
+                            vm.updateNow(toLaunch)
+                        }
+                    }
+                    if (launchProfile(toLaunch, query)) {
                         runningIds = runningIds + p.id
                         vm.markRun(p.id)
                     }
@@ -705,6 +727,8 @@ fun MainScreen(vm: ProfileViewModel, autoRunProfileId: Long? = null, autoRunQuer
                 noticeProfileId = launchFailedId,
                 noticeText = proxyCheck,
                 onDismissNotice = { vm.clearNotices(); launchFailedId = null },
+                directInfo = directInfo,
+                onRetryDirect = { refreshDirect() },
                 onShowAbout = { showAbout = true }
             )
             HomeRoute.PROXY -> AddProxyScreen(
@@ -988,10 +1012,10 @@ private fun PremiumHeader(
             InfinityLogo(color = GoGreen, fontSize = 34)
         }
         Spacer(Modifier.width(8.dp))
-        // v2.8.25: the title yields to the Premium pill — the pill keeps
-        // its full width, so "Premium" can never wrap to "Premiu m".
-        BrandTitle(Modifier.weight(1f, fill = false))
-        Spacer(Modifier.weight(1f))
+        // The title takes the full remaining width so it is never
+        // clipped; the pill and the icons are measured first and keep
+        // their own width.
+        BrandTitle(Modifier.weight(1f))
         if (onBell != null) {
             Box(
                 modifier = Modifier
@@ -1227,7 +1251,9 @@ private fun ProfilesScreen(
     onShowAbout: () -> Unit,
     noticeProfileId: Long? = null,
     noticeText: String? = null,
-    onDismissNotice: () -> Unit = {}
+    onDismissNotice: () -> Unit = {},
+    directInfo: DirectInfo? = null,
+    onRetryDirect: () -> Unit = {}
 ) {
     val ctx = LocalContext.current
     var filterOpen by remember { mutableStateOf(false) }
@@ -1374,7 +1400,9 @@ private fun ProfilesScreen(
                             onDuplicate = { onDuplicate(p) },
                             onCheckFingerprint = { onCheckFingerprint(p) },
                             notice = if (noticeProfileId == p.id) noticeText else null,
-                            onDismissNotice = onDismissNotice
+                            onDismissNotice = onDismissNotice,
+                            direct = directInfo,
+                            onRetryDirect = onRetryDirect
                         )
                     }
                     item {
@@ -1445,14 +1473,16 @@ private fun ProfileCard(
     onDuplicate: () -> Unit,
     onCheckFingerprint: () -> Unit,
     notice: String? = null,
-    onDismissNotice: () -> Unit = {}
+    onDismissNotice: () -> Unit = {},
+    direct: DirectInfo? = null,
+    onRetryDirect: () -> Unit = {}
 ) {
     var menuOpen by remember { mutableStateOf(false) }
-    val (flag, _) = countryOf(profile)
-    val (city, country) = profileCityCountry(profile)
+    val (flag, _) = countryOf(profile, direct)
+    val (city, country) = profileCityCountry(profile, direct)
     val location = listOf(city, country).filter { it.isNotBlank() }.joinToString(", ")
     val ipLine = when {
-        profile.proxyMode == "NONE" -> "Direct connection"
+        profile.proxyMode == "NONE" -> if (direct != null) "IP: ${direct.ip}" else "IP: Unavailable"
         entry == null -> "IP: ${profile.proxyHost}"
         entry.lastIp.isBlank() -> "IP: ${profile.proxyHost} • not tested"
         else -> "IP: ${entry.lastIp} • ${entry.lastMs} ms"
@@ -1521,7 +1551,7 @@ private fun ProfileCard(
                         Icon(Icons.Filled.Storage, null, tint = GoGreyText, modifier = Modifier.size(15.dp))
                         Spacer(Modifier.width(5.dp))
                         Text(
-                            "Proxy • ${profile.proxyMode}",
+                            if (profile.proxyMode == "NONE") "Direct connection" else "Proxy • ${profile.proxyMode}",
                             fontSize = 14.sp,
                             color = GoGreyText,
                             maxLines = 1,
@@ -1539,6 +1569,22 @@ private fun ProfileCard(
                         Icon(Icons.Filled.Language, null, tint = GoGreyText, modifier = Modifier.size(15.dp))
                         Spacer(Modifier.width(5.dp))
                         Text(ipLine, fontSize = 14.sp, color = GoGreyText, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        if (profile.proxyMode == "NONE" && direct == null) {
+                            Spacer(Modifier.width(8.dp))
+                            TextButton(
+                                onClick = onRetryDirect,
+                                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)
+                            ) {
+                                Text(
+                                    "Retry",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = GoGreenDark,
+                                    maxLines = 1,
+                                    softWrap = false
+                                )
+                            }
+                        }
                     }
                 }
                 Box {
