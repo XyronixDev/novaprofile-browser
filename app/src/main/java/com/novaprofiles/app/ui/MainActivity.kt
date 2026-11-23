@@ -1164,7 +1164,7 @@ private fun PillTabs(
             modifier = Modifier
                 .clip(RoundedCornerShape(24.dp))
                 .background(GoGreen)
-                .padding(horizontal = 10.dp, vertical = 10.dp),
+                .padding(horizontal = 10.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(Icons.Filled.Layers, null, tint = Color.White, modifier = Modifier.size(16.dp))
@@ -1505,7 +1505,7 @@ private fun ProfileCard(
         Column(
             modifier = Modifier
                 .weight(1f)
-                .padding(start = 12.dp, top = 14.dp, bottom = 14.dp, end = 14.dp)
+                .padding(start = 12.dp, top = 14.dp, bottom = 4.dp, end = 14.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(flag, fontSize = 40.sp)
@@ -1611,7 +1611,7 @@ private fun ProfileCard(
                     }
                 }
             }
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(7.dp))
             // Bottom action bar: Launch | Edit | More.
             Row(
                 modifier = Modifier
@@ -1801,10 +1801,10 @@ private fun AddEditFormScreen(
                 else -> {
                     // Avatar + title.
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(modifier = Modifier.size(110.dp)) {
+                        Box(modifier = Modifier.size(86.dp)) {
                             Box(
                                 modifier = Modifier
-                                    .size(110.dp)
+                                    .size(86.dp)
                                     .clip(CircleShape)
                                     .background(GoMintBg),
                                 contentAlignment = Alignment.Center
@@ -1813,12 +1813,12 @@ private fun AddEditFormScreen(
                                     Icons.Outlined.Person,
                                     null,
                                     tint = GoGreenDark,
-                                    modifier = Modifier.size(56.dp)
+                                    modifier = Modifier.size(44.dp)
                                 )
                             }
                             Box(
                                 modifier = Modifier
-                                    .size(34.dp)
+                                    .size(24.dp)
                                     .clip(CircleShape)
                                     .background(GoGreen)
                                     .border(3.dp, Color.White, CircleShape)
@@ -1829,7 +1829,7 @@ private fun AddEditFormScreen(
                                     if (editing) Icons.Filled.Edit else Icons.Filled.Add,
                                     null,
                                     tint = Color.White,
-                                    modifier = Modifier.size(18.dp)
+                                    modifier = Modifier.size(13.dp)
                                 )
                             }
                         }
@@ -2173,11 +2173,11 @@ private fun AddProxyScreen(
             // Shield-gear avatar + title.
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
-                    modifier = Modifier.size(96.dp),
+                    modifier = Modifier.size(64.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Filled.Shield, null, tint = GoGreen, modifier = Modifier.size(96.dp))
-                    Icon(Icons.Filled.Settings, null, tint = Color.White, modifier = Modifier.size(40.dp))
+                    Icon(Icons.Filled.Shield, null, tint = GoGreen, modifier = Modifier.size(64.dp))
+                    Icon(Icons.Filled.Settings, null, tint = Color.White, modifier = Modifier.size(27.dp))
                 }
                 Spacer(Modifier.width(16.dp))
                 Column(Modifier.weight(1f)) {
@@ -2608,13 +2608,13 @@ private fun SettingsScreen(
             Spacer(Modifier.height(2.dp))
             Box(
                 modifier = Modifier
-                    .size(96.dp)
+                    .size(90.dp)
                     .clip(CircleShape)
                     .background(GoMintBg)
                     .align(Alignment.CenterHorizontally),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Filled.Settings, null, tint = GoGreenDark, modifier = Modifier.size(52.dp))
+                Icon(Icons.Filled.Settings, null, tint = GoGreenDark, modifier = Modifier.size(48.dp))
             }
             Text(
                 "Settings",
