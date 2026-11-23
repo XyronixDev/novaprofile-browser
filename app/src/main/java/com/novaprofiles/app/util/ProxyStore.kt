@@ -5,6 +5,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.withContext
@@ -190,6 +191,197 @@ class ProxyStore(context: Context) {
     fun update(entry: ProxyEntry) {
         persist(_proxies.value.map { if (it.id == entry.id) entry else it })
     }
+
+    suspend fun fetchFreeProxies(country: String = "US", limit: Int = 10): List<ProxyEntry> =
+        withContext(Dispatchers.IO) {
+            val cc = country.uppercase()
+            val geonode = async {
+                try {
+                    val body = URL(
+                        "https://proxylist.geonode.com/api/proxy-list" +
+                            "?limit=50&page=1&sort_by=latency&sort_type=asc" +
+                            "&country=$cc&anonymityLevel=elite" +
+                            "&protocols=http%2Chttps"
+                    ).readText()
+                    val arr = JSONObject(body).optJSONArray("data") ?: return@async emptyList<String>()
+                    (0 until arr.length()).mapNotNull { i ->
+                        val o = arr.optJSONObject(i) ?: return@mapNotNull null
+                        val host = o.optString("ip")
+                        val port = o.optInt("port", 0)
+                        if (host.isBlank() || port <= 0) return@mapNotNull null
+                        "$host:$port"
+                    }
+                } catch (e: Exception) {
+                    emptyList()
+                }
+            }
+            val scrape = async {
+                try {
+                    URL(
+                        "https://api.proxyscrape.com/v2/?request=getproxies" +
+                            "&protocol=http&timeout=5000&country=$cc" +
+                            "&ssl=all&anonymity=elite,anonymous"
+                    ).readText().lines().filter { it.contains(":") }
+                } catch (e: Exception) {
+                    emptyList()
+                }
+            }
+            // v2.7: free-proxy-list.net — a plain server-rendered HTML
+            // table (verified 2026-11-07: ~300 rows, IPs in plain text,
+            // "Last Checked" seconds ago). No API, no speed column, HTTP
+            // only — the parallel test is what proves speed. The row
+            // pattern tolerates class attributes on every <td>.
+            val fpl = async {
+                try {
+                    val conn = URL("https://free-proxy-list.net/")
+                        .openConnection() as HttpURLConnection
+                    conn.connectTimeout = 10_000
+                    conn.readTimeout = 10_000
+                    conn.setRequestProperty(
+                        "User-Agent",
+                        "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 " +
+                            "(KHTML, like Gecko) Chrome/151.0.0.0 Mobile Safari/537.36"
+                    )
+                    if (conn.responseCode != 200) {
+                        conn.disconnect()
+                        return@async emptyList()
+                    }
+                    val html = conn.inputStream.bufferedReader().readText()
+                    conn.disconnect()
+                    val rowRe = Regex(
+                        "<tr><td>(\\d+\\.\\d+\\.\\d+\\.\\d+)</td><td>(\\d+)</td>" +
+                            "<td>([A-Z]{2})</td><td[^>]*>([^<]*)</td><td[^>]*>([^<]*)</td>"
+                    )
+                    rowRe.findAll(html).mapNotNull { m ->
+                        val (ip, port, code, _, anon) = m.destructured
+                        if (code != cc) return@mapNotNull null
+                        val a = anon.lowercase()
+                        if (!a.contains("elite") && !a.contains("anonymous")) {
+                            return@mapNotNull null
+                        }
+                        "$ip:$port"
+                    }.take(10).toList()
+                } catch (e: Exception) {
+                    emptyList()
+                }
+            }
+            val merged = (geonode.await() + scrape.await() + fpl.await())
+                .map { it.trim() }.filter { it.contains(":") }.distinct()
+            val source = if (merged.isNotEmpty()) merged else try {
+                URL("https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/http.txt")
+                    .readText().lines().filter { it.contains(":") }
+            } catch (e: Exception) {
+                emptyList()
+            }
+            source.take(limit).mapIndexedNotNull { i, line ->
+                val parts = line.split(":")
+                if (parts.size < 2) return@mapIndexedNotNull null
+                val port = parts[1].toIntOrNull() ?: return@mapIndexedNotNull null
+                ProxyEntry(
+                    name = "Free $cc ${i + 1}",
+                    mode = "HTTP",
+                    host = parts[0],
+                    port = port
+                )
+            }
+        }
+
+    /**
+     * v2.7: Webshare proxies via the official API. Free plan = 10 stable
+     * proxies + 1GB/month, renewing monthly; paid ($2.99/mo) is optional
+     * and never required — a free-plan key works exactly the same way.
+     * The user creates an API key in the Webshare dashboard
+     * (Integrations -> API Keys) and pastes it into Settings; the key is
+     * stored only on this phone (DataStore) and is sent only to
+     * Webshare's own API. Direct mode: connect to proxy_address + port
+     * with the per-proxy username/password the API returns. Defensive
+     * parsing: every field is opt* with fallbacks, so an API shape
+     * change degrades to an empty list, never a crash — and a wrong key
+     * (non-200) also returns empty, which the UI reports as "check the
+     * key". Free Webshare proxies are shared datacenter IPs: stable,
+     * but the whoer ~90% ceiling still applies (residential needed for
+     * 100%) and heavy use eats the 1GB cap.
+     */
+    suspend fun fetchWebshareProxies(apiKey: String): List<ProxyEntry> =
+        withContext(Dispatchers.IO) {
+            if (apiKey.isBlank()) return@withContext emptyList()
+            try {
+                val conn = URL(
+                    "https://proxy.webshare.io/api/v2/proxy/list/" +
+                        "?mode=direct&page=1&page_size=100"
+                ).openConnection() as HttpURLConnection
+                conn.connectTimeout = 15_000
+                conn.readTimeout = 15_000
+                conn.setRequestProperty("Authorization", "Token ${apiKey.trim()}")
+                conn.setRequestProperty("Accept", "application/json")
+                if (conn.responseCode != 200) {
+                    conn.disconnect()
+                    return@withContext emptyList()
+                }
+                val body = conn.inputStream.bufferedReader().readText()
+                conn.disconnect()
+                val arr = JSONObject(body).optJSONArray("results")
+                    ?: return@withContext emptyList()
+                (0 until arr.length()).mapNotNull { i ->
+                    val o = arr.optJSONObject(i) ?: return@mapNotNull null
+                    val host = o.optString("proxy_address").ifBlank { o.optString("ip") }
+                    val port = o.optInt("port", 0)
+                    if (host.isBlank() || port <= 0) return@mapNotNull null
+                    if (!o.optBoolean("valid", true)) return@mapNotNull null
+                    val cc = o.optString("country_code").uppercase()
+                    val label = if (cc.isBlank()) "" else Profile.countrySettings(cc).label
+                    ProxyEntry(
+                        name = "Webshare • " + label.ifBlank { host },
+                        // Dashboard quick-start uses HTTP; the same port
+                        // also speaks SOCKS5, but HTTP is the safe default.
+                        mode = "HTTP",
+                        host = host,
+                        port = port,
+                        user = o.optString("username"),
+                        pass = o.optString("password"),
+                        country = if (cc.isBlank()) "" else "$cc • $label"
+                    )
+                }
+            } catch (e: Exception) {
+                emptyList()
+            }
+        }
+
+    /**
+     * Parallel fastest-working test (v2.3, rebuilt v2.4): tests all
+     * [candidates] at once and returns the FASTEST one that actually
+     * proxies. v2.3 stopped at the FIRST working proxy — which could be
+     * a slow one (the phone test: a Google Cloud proxy that took ~4s
+     * to load whoer). Now, once the first working proxy appears, faster
+     * ones get up to 2.5s more to finish, and the lowest-latency winner
+     * is picked. Worst case is still the 12s deadline.
+     */
+    suspend fun checkFirstWorking(candidates: List<ProxyEntry>): ProxyEntry? =
+        withContext(Dispatchers.IO) {
+            val deferreds = candidates.map { async { check(it) } }
+            val deadline = System.currentTimeMillis() + 12_000
+            var firstOkAt = 0L
+            var working: ProxyEntry? = null
+            while (working == null && System.currentTimeMillis() < deadline) {
+                val done = deferreds.filter { it.isCompleted }
+                    .mapNotNull { runCatching { it.await() }.getOrNull() }
+                    .filter { it.ok }
+                if (done.isNotEmpty()) {
+                    if (firstOkAt == 0L) firstOkAt = System.currentTimeMillis()
+                    if (System.currentTimeMillis() - firstOkAt >= 2_500 ||
+                        deferreds.all { it.isCompleted }
+                    ) {
+                        working = done.minByOrNull { it.lastMs }
+                        break
+                    }
+                }
+                if (deferreds.all { it.isCompleted }) break
+                delay(200)
+            }
+            deferreds.forEach { it.cancel() }
+            working
+        }
+
 
     /** Live check through the proxy. Returns the entry with fresh results. */
     suspend fun check(entry: ProxyEntry): ProxyEntry = withContext(Dispatchers.IO) {
