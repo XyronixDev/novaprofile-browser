@@ -91,12 +91,14 @@ import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -119,6 +121,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -127,6 +130,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.novaprofiles.app.data.Profile
 import androidx.compose.runtime.LaunchedEffect
@@ -181,7 +185,15 @@ class MainActivity : ComponentActivity() {
         }
         setContent {
             NovaProfileTheme {
-                MainScreen(vm = vm, autoRunProfileId = autoRunProfileId, autoRunQuery = autoRunQuery)
+                // M3 bodyLarge carries a 24sp lineHeight; every label that
+                // only sets a fontSize inherits it, so small rows render far
+                // taller and airier than the reference. Keep the theme type
+                // and only tighten the leading to a natural multiple.
+                CompositionLocalProvider(
+                    LocalTextStyle provides LocalTextStyle.current.copy(lineHeight = 1.2.em)
+                ) {
+                    MainScreen(vm = vm, autoRunProfileId = autoRunProfileId, autoRunQuery = autoRunQuery)
+                }
             }
         }
     }
@@ -1048,13 +1060,13 @@ private fun PremiumBottomNav(
             verticalAlignment = Alignment.CenterVertically
         ) {
             BottomNavItem(
-                icon = { Icon(Icons.Outlined.Person, null, Modifier.size(22.dp)) },
+                icon = { Icon(Icons.Outlined.Person, null, Modifier.size(18.dp)) },
                 label = "Profiles",
                 selected = selected == HomeRoute.PROFILES,
                 onClick = onProfiles
             )
             BottomNavItem(
-                icon = { Icon(Icons.Filled.Settings, null, Modifier.size(22.dp)) },
+                icon = { Icon(Icons.Filled.Settings, null, Modifier.size(18.dp)) },
                 label = "Settings",
                 selected = selected == HomeRoute.SETTINGS,
                 onClick = onSettings
@@ -1063,15 +1075,15 @@ private fun PremiumBottomNav(
         Spacer(Modifier.width(12.dp))
         Box(
             modifier = Modifier
-                .size(68.dp)
+                .size(64.dp)
                 .clip(CircleShape)
                 .background(GoGreen)
                 .clickable(onClick = onAddProfile),
             contentAlignment = Alignment.Center
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(Icons.Filled.Add, null, tint = Color.White, modifier = Modifier.size(26.dp))
-                Text("Add Profile", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                Icon(Icons.Filled.Add, null, tint = Color.White, modifier = Modifier.size(20.dp))
+                Text("Add Profile", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
             }
         }
     }
@@ -1105,7 +1117,7 @@ private fun BottomNavItem(
         }
         Text(
             label,
-            fontSize = 10.sp,
+            fontSize = 11.sp,
             maxLines = 1,
             color = if (selected) GoGreen else GoGreyText,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
@@ -1142,7 +1154,7 @@ private fun PillTabs(
                 .padding(horizontal = 10.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(Icons.Filled.Layers, null, tint = Color.White, modifier = Modifier.size(16.dp))
+            Icon(Icons.Filled.Layers, null, tint = Color.White, modifier = Modifier.size(12.dp))
             Spacer(Modifier.width(4.dp))
             Text(
                 "Profiles ($profileCount)",
@@ -1161,7 +1173,7 @@ private fun PillTabs(
                 .padding(horizontal = 10.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(Icons.Filled.Shield, null, tint = Color.White, modifier = Modifier.size(16.dp))
+            Icon(Icons.Filled.Shield, null, tint = Color.White, modifier = Modifier.size(12.dp))
             Spacer(Modifier.width(4.dp))
             Text(
                 "Proxy",
@@ -1181,7 +1193,7 @@ private fun SectionHeader(icon: @Composable () -> Unit, label: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         icon()
         Spacer(Modifier.width(8.dp))
-        Text(label, fontWeight = FontWeight.Bold, fontSize = 18.sp, color = GoTitle)
+        Text(label, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = GoTitle)
     }
 }
 
@@ -1199,14 +1211,14 @@ private fun MenuRow(
             .clip(RoundedCornerShape(16.dp))
             .background(Color.White)
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         icon()
         Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f)) {
-            Text(title, fontWeight = FontWeight.Bold, fontSize = 17.sp, color = GoTitle, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(subtitle, color = GoGreyText, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(title, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = GoTitle, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(subtitle, color = GoGreyText, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = GoGreyText)
     }
@@ -1288,7 +1300,7 @@ private fun ProfilesScreen(
                             OutlinedTextField(
                                 value = query,
                                 onValueChange = onQuery,
-                                placeholder = { Text("Search profiles...", color = GoGreyText) },
+                                placeholder = { Text("Search profiles...", color = GoGreyText, fontSize = 11.sp) },
                                 leadingIcon = {
                                     Icon(Icons.Filled.Search, null, tint = GoGreen)
                                 },
@@ -1312,7 +1324,7 @@ private fun ProfilesScreen(
                                         .clickable { filterOpen = true },
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Icon(Icons.Filled.FilterList, null, tint = GoGreen, modifier = Modifier.size(24.dp))
+                                    Icon(Icons.Filled.FilterList, null, tint = GoGreen, modifier = Modifier.size(20.dp))
                                 }
                                 DropdownMenu(expanded = filterOpen, onDismissRequest = { filterOpen = false }) {
                                     DropdownMenuItem(
@@ -1516,7 +1528,7 @@ private fun ProfileCard(
                     }
                     Spacer(Modifier.height(4.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Filled.Storage, null, tint = GoGreyText, modifier = Modifier.size(15.dp))
+                        Icon(Icons.Filled.Storage, null, tint = GoGreyText, modifier = Modifier.size(10.dp))
                         Spacer(Modifier.width(5.dp))
                         Text(
                             if (profile.proxyMode == "NONE") "Direct connection" else "Proxy • ${profile.proxyMode}",
@@ -1528,13 +1540,13 @@ private fun ProfileCard(
                     }
                     Spacer(Modifier.height(3.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Filled.LocationOn, null, tint = GoGreyText, modifier = Modifier.size(15.dp))
+                        Icon(Icons.Filled.LocationOn, null, tint = GoGreyText, modifier = Modifier.size(10.dp))
                         Spacer(Modifier.width(5.dp))
                         Text(location, fontSize = 11.sp, color = GoGreyText, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                     Spacer(Modifier.height(3.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Filled.Language, null, tint = GoGreyText, modifier = Modifier.size(15.dp))
+                        Icon(Icons.Filled.Language, null, tint = GoGreyText, modifier = Modifier.size(10.dp))
                         Spacer(Modifier.width(5.dp))
                         Text(ipLine, fontSize = 11.sp, color = GoGreyText, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         if (profile.proxyMode == "NONE" && direct == null) {
@@ -1591,12 +1603,12 @@ private fun ProfileCard(
                         onClick = onStop,
                         colors = ButtonDefaults.buttonColors(containerColor = GoStopRed),
                         shape = RoundedCornerShape(20.dp),
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
-                        modifier = Modifier.weight(1f)
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
+                        modifier = Modifier.weight(1f).height(32.dp)
                     ) {
                         Icon(Icons.Filled.Stop, null, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(4.dp))
-                        Text("Stop", fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
+                        Text("Stop", fontWeight = FontWeight.Bold, fontSize = 13.sp, maxLines = 1, softWrap = false)
                     }
                 } else if (syncing) {
                     Box(
@@ -1618,12 +1630,12 @@ private fun ProfileCard(
                         onClick = onLaunch,
                         colors = ButtonDefaults.buttonColors(containerColor = GoGreen),
                         shape = RoundedCornerShape(20.dp),
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
-                        modifier = Modifier.weight(1f)
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
+                        modifier = Modifier.weight(1f).height(32.dp)
                     ) {
                         Icon(Icons.Filled.PlayArrow, null, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(4.dp))
-                        Text("Launch", fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
+                        Text("Launch", fontWeight = FontWeight.Bold, fontSize = 13.sp, maxLines = 1, softWrap = false)
                     }
                 }
                 Row(
@@ -1634,9 +1646,9 @@ private fun ProfileCard(
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Filled.Edit, null, tint = GoTitle, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Filled.Edit, null, tint = GoTitle, modifier = Modifier.size(14.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text("Edit", fontWeight = FontWeight.Bold, color = GoTitle, maxLines = 1, softWrap = false)
+                    Text("Edit", fontWeight = FontWeight.Bold, color = GoTitle, fontSize = 13.sp, maxLines = 1, softWrap = false)
                 }
                 Box(
                     modifier = Modifier
@@ -1652,9 +1664,9 @@ private fun ProfileCard(
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("•••", fontWeight = FontWeight.Bold, color = GoTitle, fontSize = 16.sp, maxLines = 1, softWrap = false)
+                    Text("•••", fontWeight = FontWeight.Bold, color = GoTitle, fontSize = 13.sp, maxLines = 1, softWrap = false)
                     Spacer(Modifier.width(6.dp))
-                    Text("More", fontWeight = FontWeight.Bold, color = GoTitle, maxLines = 1, softWrap = false)
+                    Text("More", fontWeight = FontWeight.Bold, color = GoTitle, fontSize = 13.sp, maxLines = 1, softWrap = false)
                 }
             }
             // v2.8.26 (DDG port): a proxy check / launch result is
@@ -1766,10 +1778,10 @@ private fun AddEditFormScreen(
                 else -> {
                     // Avatar + title.
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(modifier = Modifier.size(86.dp)) {
+                        Box(modifier = Modifier.size(80.dp)) {
                             Box(
                                 modifier = Modifier
-                                    .size(86.dp)
+                                    .size(80.dp)
                                     .clip(CircleShape)
                                     .background(GoMintBg),
                                 contentAlignment = Alignment.Center
@@ -1783,7 +1795,7 @@ private fun AddEditFormScreen(
                             }
                             Box(
                                 modifier = Modifier
-                                    .size(24.dp)
+                                    .size(20.dp)
                                     .clip(CircleShape)
                                     .background(GoGreen)
                                     .border(3.dp, Color.White, CircleShape)
@@ -1794,7 +1806,7 @@ private fun AddEditFormScreen(
                                     if (editing) Icons.Filled.Edit else Icons.Filled.Add,
                                     null,
                                     tint = Color.White,
-                                    modifier = Modifier.size(13.dp)
+                                    modifier = Modifier.size(11.dp)
                                 )
                             }
                         }
@@ -1803,7 +1815,7 @@ private fun AddEditFormScreen(
                             Text(
                                 if (editing) "Edit Profile" else "Add Profile",
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 28.sp,
+                                fontSize = 20.sp,
                                 color = GoTitle
                             )
                             Spacer(Modifier.height(4.dp))
@@ -1811,7 +1823,7 @@ private fun AddEditFormScreen(
                                 if (editing) "Update your profile settings and customize your browser environment."
                                 else "Create a new profile with unique fingerprint and proxy settings.",
                                 color = GoGreyText,
-                                fontSize = 15.sp
+                                fontSize = 12.sp
                             )
                         }
                     }
@@ -1825,16 +1837,16 @@ private fun AddEditFormScreen(
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Outlined.Person, null, tint = GoGreen, modifier = Modifier.size(22.dp))
+                            Icon(Icons.Outlined.Person, null, tint = GoGreen, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(8.dp))
-                            Text("Profile Name", fontWeight = FontWeight.Bold, fontSize = 17.sp, color = GoTitle)
+                            Text("Profile Name", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = GoTitle)
                         }
                         OutlinedTextField(
                             value = draft.name,
                             onValueChange = { onDraft(draft.copy(name = it.take(50))) },
-                            placeholder = { Text("Enter profile name...", color = GoGreyText) },
+                            placeholder = { Text("Enter profile name...", color = GoGreyText, fontSize = 12.sp) },
                             trailingIcon = {
-                                Text("${draft.name.length}/50", color = GoGreyText, fontSize = 13.sp)
+                                Text("${draft.name.length}/50", color = GoGreyText, fontSize = 10.sp)
                             },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
@@ -1849,7 +1861,7 @@ private fun AddEditFormScreen(
                     }
                     // Proxy.
                     SectionHeader(
-                        icon = { Icon(Icons.Filled.Layers, null, tint = GoGreen, modifier = Modifier.size(22.dp)) },
+                        icon = { Icon(Icons.Filled.Layers, null, tint = GoGreen, modifier = Modifier.size(18.dp)) },
                         label = "Proxy"
                     )
                     MenuRow(
@@ -1858,7 +1870,7 @@ private fun AddEditFormScreen(
                                 if (draft.proxyMode == "NONE") Icons.Filled.Link else Icons.Filled.Storage,
                                 null,
                                 tint = GoGreen,
-                                modifier = Modifier.size(28.dp)
+                                modifier = Modifier.size(24.dp)
                             )
                         },
                         title = if (draft.proxyMode == "NONE") "Connect Proxy"
@@ -1870,11 +1882,11 @@ private fun AddEditFormScreen(
                     countryStatus?.let { Text(it, color = GoGreyText, fontSize = 13.sp) }
                     // Extended settings.
                     SectionHeader(
-                        icon = { Icon(Icons.Filled.Settings, null, tint = GoGreen, modifier = Modifier.size(22.dp)) },
+                        icon = { Icon(Icons.Filled.Settings, null, tint = GoGreen, modifier = Modifier.size(18.dp)) },
                         label = "Extended Settings"
                     )
                     MenuRow(
-                        icon = { Icon(Icons.Filled.DesktopWindows, null, tint = GoGreen, modifier = Modifier.size(28.dp)) },
+                        icon = { Icon(Icons.Filled.DesktopWindows, null, tint = GoGreen, modifier = Modifier.size(24.dp)) },
                         title = "Profile Overview",
                         // v2.8.25: the reference text differs per screen —
                         // Add says "Set profile details…", Edit says
@@ -1884,31 +1896,31 @@ private fun AddEditFormScreen(
                         onClick = { extSection = "overview" }
                     )
                     MenuRow(
-                        icon = { Icon(Icons.Filled.LocationOn, null, tint = GoGreen, modifier = Modifier.size(28.dp)) },
+                        icon = { Icon(Icons.Filled.LocationOn, null, tint = GoGreen, modifier = Modifier.size(24.dp)) },
                         title = "Proxy & Location",
                         subtitle = "Choose country and proxy settings",
                         onClick = { extSection = "proxy" }
                     )
                     MenuRow(
-                        icon = { Icon(Icons.Filled.Language, null, tint = GoGreen, modifier = Modifier.size(28.dp)) },
+                        icon = { Icon(Icons.Filled.Language, null, tint = GoGreen, modifier = Modifier.size(24.dp)) },
                         title = "Browser",
                         subtitle = "Configure browser settings",
                         onClick = { extSection = "browser" }
                     )
                     MenuRow(
-                        icon = { Icon(Icons.Filled.Storage, null, tint = GoGreen, modifier = Modifier.size(28.dp)) },
+                        icon = { Icon(Icons.Filled.Storage, null, tint = GoGreen, modifier = Modifier.size(24.dp)) },
                         title = "Storage",
                         subtitle = "Manage profile storage",
                         onClick = { extSection = "storage" }
                     )
                     MenuRow(
-                        icon = { Icon(Icons.Filled.Memory, null, tint = GoGreen, modifier = Modifier.size(28.dp)) },
+                        icon = { Icon(Icons.Filled.Memory, null, tint = GoGreen, modifier = Modifier.size(24.dp)) },
                         title = "Hardware",
                         subtitle = "Customize hardware fingerprint",
                         onClick = { extSection = "hardware" }
                     )
                     MenuRow(
-                        icon = { Icon(Icons.Filled.Fingerprint, null, tint = GoGreen, modifier = Modifier.size(28.dp)) },
+                        icon = { Icon(Icons.Filled.Fingerprint, null, tint = GoGreen, modifier = Modifier.size(24.dp)) },
                         title = "Check fingerprint",
                         subtitle = "Verify your profile fingerprint",
                         onClick = { onCheckFingerprint(draft) }
@@ -1959,7 +1971,7 @@ private fun AddEditFormScreen(
                             if (connectingCountry != null) "Connecting ${connectingCountry}…"
                             else "Save Profile",
                             fontWeight = FontWeight.Bold,
-                            fontSize = 15.sp,
+                            fontSize = 14.sp,
                             maxLines = 1,
                             softWrap = false
                         )
@@ -1976,7 +1988,7 @@ private fun AddEditFormScreen(
                             .weight(1f)
                             .height(48.dp)
                     ) {
-                        Text("Cancel", fontWeight = FontWeight.Bold, fontSize = 15.sp, maxLines = 1, softWrap = false)
+                        Text("Cancel", fontWeight = FontWeight.Bold, fontSize = 14.sp, maxLines = 1, softWrap = false)
                     }
                 } else {
                     Button(
@@ -1993,7 +2005,7 @@ private fun AddEditFormScreen(
                     ) {
                         Icon(Icons.Filled.Close, null, modifier = Modifier.size(20.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text("Cancel", fontWeight = FontWeight.Bold, fontSize = 16.sp, maxLines = 1, softWrap = false)
+                        Text("Cancel", fontWeight = FontWeight.Bold, fontSize = 15.sp, maxLines = 1, softWrap = false)
                     }
                     Button(
                         onClick = trySave,
@@ -2011,7 +2023,7 @@ private fun AddEditFormScreen(
                             if (connectingCountry != null) "Connecting ${connectingCountry}…"
                             else "Add Profile",
                             fontWeight = FontWeight.Bold,
-                            fontSize = 16.sp,
+                            fontSize = 14.sp,
                             maxLines = 1,
                             softWrap = false
                         )
@@ -2029,7 +2041,7 @@ private fun AddEditFormScreen(
                 ) {
                     Icon(Icons.Filled.Delete, null, tint = Color(0xFFD93025), modifier = Modifier.size(20.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text("Delete Profile", color = Color(0xFFD93025), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Text("Delete Profile", color = Color(0xFFD93025), fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 }
             }
         }
@@ -2185,7 +2197,7 @@ private fun AddProxyBody(
                 }
                 Spacer(Modifier.width(16.dp))
                 Column(Modifier.weight(1f)) {
-                    Text("Add Proxy", fontWeight = FontWeight.Bold, fontSize = 23.sp, color = GoTitle)
+                    Text("Add Proxy", fontWeight = FontWeight.Bold, fontSize = 21.sp, color = GoTitle)
                     Spacer(Modifier.height(4.dp))
                     Text(
                         buildAnnotatedString {
@@ -2197,7 +2209,7 @@ private fun AddProxyBody(
                             append(" – permanently.")
                         },
                         color = GoGreyText,
-                        fontSize = 15.sp
+                        fontSize = 13.sp
                     )
                 }
             }
@@ -2225,12 +2237,12 @@ private fun AddProxyBody(
                     Text(
                         "Import Proxies from File",
                         fontWeight = FontWeight.Bold,
-                        fontSize = 12.sp,
+                        fontSize = 14.sp,
                         color = GoTitle,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                    Text("Select a .txt file with your proxies", color = GoGreyText, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text("Select a .txt file with your proxies", color = GoGreyText, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = GoGreyText)
             }
@@ -2242,12 +2254,12 @@ private fun AddProxyBody(
                     .clickable { showManual = !showManual },
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.Filled.Tune, null, tint = GoGreen, modifier = Modifier.size(24.dp))
+                Icon(Icons.Filled.Tune, null, tint = GoGreen, modifier = Modifier.size(20.dp))
                 Spacer(Modifier.width(8.dp))
                 Text(
                     "Add Proxy Manually",
                     fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp,
+                    fontSize = 12.sp,
                     color = GoTitle,
                     modifier = Modifier.weight(1f),
                     maxLines = 1,
@@ -2370,17 +2382,17 @@ private fun AddProxyBody(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(
-                    modifier = Modifier.size(36.dp),
+                    modifier = Modifier.size(26.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Filled.Shield, null, tint = GoGreen, modifier = Modifier.size(36.dp))
-                    Icon(Icons.Filled.Check, null, tint = Color.White, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Filled.Shield, null, tint = GoGreen, modifier = Modifier.size(26.dp))
+                    Icon(Icons.Filled.Check, null, tint = Color.White, modifier = Modifier.size(13.dp))
                 }
                 Spacer(Modifier.width(12.dp))
                 Text(
                     "Use no proxy (Direct)",
                     fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp,
+                    fontSize = 12.sp,
                     color = if (directSelected) GoGreen else GoTitle,
                     modifier = Modifier.weight(1f),
                     maxLines = 1,
@@ -2405,18 +2417,18 @@ private fun AddProxyBody(
             }
             // Saved proxies header.
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Filled.Storage, null, tint = GoGreen, modifier = Modifier.size(24.dp))
+                Icon(Icons.Filled.Storage, null, tint = GoGreen, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(8.dp))
                 Column(Modifier.weight(1f)) {
                     Text(
                         "Saved Proxies (${savedProxies.size})",
                         fontWeight = FontWeight.Bold,
-                        fontSize = 19.sp,
+                        fontSize = 12.sp,
                         color = GoTitle,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                    Text("Tap one to test & apply it at once", color = GoGreyText, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text("Tap one to test & apply it at once", color = GoGreyText, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 Button(
                     onClick = {
@@ -2437,9 +2449,9 @@ private fun AddProxyBody(
                     shape = RoundedCornerShape(20.dp),
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
                 ) {
-                    Icon(Icons.Filled.Bolt, null, modifier = Modifier.size(15.dp))
+                    Icon(Icons.Filled.Bolt, null, modifier = Modifier.size(12.dp))
                     Spacer(Modifier.width(4.dp))
-                    Text("Test All", fontWeight = FontWeight.Bold, fontSize = 12.sp, maxLines = 1, softWrap = false)
+                    Text("Test All", fontWeight = FontWeight.Bold, fontSize = 10.sp, maxLines = 1, softWrap = false)
                 }
             }
             // Saved proxy rows.
@@ -2496,28 +2508,28 @@ private fun ProxyRow(
             .padding(14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(flag, fontSize = 36.sp)
+        Text(flag, fontSize = 26.sp)
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(
                 "SOCKS5 ${entry.host}:${entry.port}",
                 fontWeight = FontWeight.Bold,
-                fontSize = 13.sp,
+                fontSize = 12.sp,
                 color = GoTitle,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
             Spacer(Modifier.height(3.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Filled.LocationOn, null, tint = GoGreyText, modifier = Modifier.size(14.dp))
+                Icon(Icons.Filled.LocationOn, null, tint = GoGreyText, modifier = Modifier.size(10.dp))
                 Spacer(Modifier.width(4.dp))
-                Text(countryLabel, fontSize = 11.sp, color = GoGreyText, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(countryLabel, fontSize = 10.sp, color = GoGreyText, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             Spacer(Modifier.height(3.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Filled.Timer, null, tint = GoGreyText, modifier = Modifier.size(14.dp))
+                Icon(Icons.Filled.Timer, null, tint = GoGreyText, modifier = Modifier.size(10.dp))
                 Spacer(Modifier.width(4.dp))
-                Text(ipLine, fontSize = 10.sp, color = GoGreyText, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(ipLine, fontSize = 9.sp, color = GoGreyText, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
         Column(
@@ -2540,12 +2552,12 @@ private fun ProxyRow(
                     null,
                     tint = if (ready) GoGreenDark
                     else if (failed) Color(0xFFD93025) else GoGreyText,
-                    modifier = Modifier.size(14.dp)
+                    modifier = Modifier.size(12.dp)
                 )
                 Spacer(Modifier.width(4.dp))
                 Text(
                     if (ready) "Ready" else if (failed) "Failed" else "Not tested",
-                    fontSize = 12.sp,
+                    fontSize = 10.sp,
                     fontWeight = FontWeight.Bold,
                     color = if (ready) GoGreenDark
                     else if (failed) Color(0xFFD93025) else GoGreyText,
@@ -2556,7 +2568,7 @@ private fun ProxyRow(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
                     modifier = Modifier
-                        .size(36.dp)
+                        .size(28.dp)
                         .clip(CircleShape)
                         .border(1.5.dp, GoGreen, CircleShape)
                         .clickable(onClick = onTest),
@@ -2564,17 +2576,17 @@ private fun ProxyRow(
                 ) {
                     if (testing) {
                         CircularProgressIndicator(
-                            modifier = Modifier.size(13.dp),
+                            modifier = Modifier.size(12.dp),
                             color = GoGreen,
                             strokeWidth = 2.dp
                         )
                     } else {
-                        Icon(Icons.Filled.PlayArrow, null, tint = GoGreen, modifier = Modifier.size(13.dp))
+                        Icon(Icons.Filled.PlayArrow, null, tint = GoGreen, modifier = Modifier.size(12.dp))
                     }
                 }
                 Box {
                     IconButton(onClick = { menuOpen = true }, modifier = Modifier.size(32.dp)) {
-                        Icon(Icons.Filled.MoreVert, contentDescription = "More", tint = GoTitle)
+                        Icon(Icons.Filled.MoreVert, contentDescription = "More", tint = GoTitle, modifier = Modifier.size(18.dp))
                     }
                     DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                         DropdownMenuItem(
@@ -2625,7 +2637,7 @@ private fun SettingsScreen(
             Text(
                 "Settings",
                 fontWeight = FontWeight.Bold,
-                fontSize = 28.sp,
+                fontSize = 27.sp,
                 color = GoTitle,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth()
@@ -2633,25 +2645,25 @@ private fun SettingsScreen(
             Text(
                 "Customize your NovaProfile experience",
                 color = GoGreyText,
-                fontSize = 15.sp,
+                fontSize = 13.sp,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth()
             )
             Spacer(Modifier.height(4.dp))
             SettingsRow(
-                icon = { Icon(Icons.Filled.FileUpload, null, tint = GoGreenDark, modifier = Modifier.size(32.dp)) },
+                icon = { Icon(Icons.Filled.FileUpload, null, tint = GoGreenDark, modifier = Modifier.size(24.dp)) },
                 title = "Export All Profiles",
                 subtitle = "Save your profiles to a .zip file",
                 onClick = onExport
             )
             SettingsRow(
-                icon = { Icon(Icons.Filled.FileDownload, null, tint = GoGreenDark, modifier = Modifier.size(32.dp)) },
+                icon = { Icon(Icons.Filled.FileDownload, null, tint = GoGreenDark, modifier = Modifier.size(24.dp)) },
                 title = "Import Profiles",
                 subtitle = "Load profiles from a .zip file",
                 onClick = onImport
             )
             SettingsRow(
-                icon = { Icon(Icons.Filled.Info, null, tint = GoGreenDark, modifier = Modifier.size(32.dp)) },
+                icon = { Icon(Icons.Filled.Info, null, tint = GoGreenDark, modifier = Modifier.size(24.dp)) },
                 title = "About NovaProfile",
                 // v2.8.25: the reference label, exactly as screenshotted.
                 subtitle = "Version 1.0.0 • Build 1000",
@@ -2686,13 +2698,13 @@ private fun SettingsScreen(
                     Text(
                         "Fingerprint protection is JS-level inside the system WebView.",
                         fontWeight = FontWeight.Bold,
-                        fontSize = 15.sp,
+                        fontSize = 11.sp,
                         color = GoTitle
                     )
                     Spacer(Modifier.height(4.dp))
                     Text(
                         "It is NOT a Chromium fork — advanced fingerprint tests can still detect the real device.",
-                        fontSize = 14.sp,
+                        fontSize = 10.sp,
                         color = GoGreyText
                     )
                 }
@@ -2722,12 +2734,12 @@ private fun SettingsRow(
             .clip(RoundedCornerShape(16.dp))
             .background(Color.White)
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
             modifier = Modifier
-                .size(64.dp)
+                .size(46.dp)
                 .clip(RoundedCornerShape(16.dp))
                 .background(GoMintBg),
             contentAlignment = Alignment.Center
@@ -2736,8 +2748,8 @@ private fun SettingsRow(
         }
         Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f)) {
-            Text(title, fontWeight = FontWeight.Bold, fontSize = 17.sp, color = GoTitle, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(subtitle, color = GoGreyText, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(title, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = GoTitle, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(subtitle, color = GoGreyText, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = GoGreyText)
     }
