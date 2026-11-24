@@ -102,6 +102,7 @@ import com.duckduckgo.app.settings.db.SettingsDataStore
 import com.duckduckgo.app.statistics.pixels.Pixel
 import com.duckduckgo.app.trackerdetection.model.Entity
 import com.duckduckgo.browser.ui.PulseAnimation
+import com.duckduckgo.browser.ui.tabs.NewTabSwitcherButton
 import com.duckduckgo.browser.ui.tabs.TabSwitcherButton
 import com.duckduckgo.browsermode.api.BrowserMode
 import com.duckduckgo.codegen.annotations.InjectWith
@@ -328,6 +329,7 @@ class OmnibarLayout @JvmOverloads constructor(
     }
     internal val browserMenuImageView: ImageView by lazy { findViewById(R.id.browserMenuImageView) }
     override val shieldIcon: LottieAnimationView by lazy { findViewById(R.id.shieldIcon) }
+    internal val novaProfileIcon: ImageView by lazy { findViewById(R.id.novaProfileIcon) }
     internal val addressBarTrackersBlockedAnimationShieldIcon: LottieAnimationView by lazy {
         findViewById(R.id.addressBarTrackersBlockedAnimationShieldIcon)
     }
@@ -337,6 +339,7 @@ class OmnibarLayout @JvmOverloads constructor(
     override val daxIcon: ImageView by lazy { findViewById(R.id.daxIcon) }
     internal val globeIcon: ImageView by lazy { findViewById(R.id.globeIcon) }
     internal val fireIconImageView: ImageView by lazy { findViewById(R.id.fireIconImageView) }
+    internal val plusIconImageView: ImageView by lazy { findViewById(R.id.plusIconImageView) }
     internal val placeholder: View by lazy { findViewById(R.id.placeholder) }
     internal val voiceSearchButton: ImageView by lazy { findViewById(R.id.voiceSearchButton) }
     internal val duckPlayerIcon: ImageView by lazy { findViewById(R.id.duckPlayerIcon) }
@@ -526,6 +529,12 @@ class OmnibarLayout @JvmOverloads constructor(
             }
             omnibarItemPressedListener?.onPrivacyShieldPressed()
         }
+        novaProfileIcon.setOnClickListener {
+            if (isAttachedToWindow) {
+                viewModel.onPrivacyShieldButtonPressed()
+            }
+            omnibarItemPressedListener?.onPrivacyShieldPressed()
+        }
         voiceSearchButton.setOnClickListener {
             omnibarItemPressedListener?.onVoiceSearchPressed()
         }
@@ -683,13 +692,15 @@ class OmnibarLayout @JvmOverloads constructor(
             OmnibarLayoutViewModel.LeadingIconState.Search -> {
                 searchIcon.show()
                 shieldIcon.gone()
+                novaProfileIcon.gone()
                 daxIcon.gone()
                 globeIcon.gone()
                 duckPlayerIcon.gone()
             }
 
             PrivacyShield -> {
-                shieldIcon.show()
+                novaProfileIcon.show()
+                shieldIcon.gone()
                 searchIcon.gone()
                 daxIcon.gone()
                 globeIcon.gone()
@@ -709,6 +720,7 @@ class OmnibarLayout @JvmOverloads constructor(
                         .into(this)
                 }
                 shieldIcon.gone()
+                novaProfileIcon.gone()
                 searchIcon.gone()
                 globeIcon.gone()
                 duckPlayerIcon.gone()
@@ -718,6 +730,7 @@ class OmnibarLayout @JvmOverloads constructor(
                 globeIcon.show()
                 daxIcon.gone()
                 shieldIcon.gone()
+                novaProfileIcon.gone()
                 searchIcon.gone()
                 duckPlayerIcon.gone()
             }
@@ -726,6 +739,7 @@ class OmnibarLayout @JvmOverloads constructor(
                 globeIcon.gone()
                 daxIcon.gone()
                 shieldIcon.gone()
+                novaProfileIcon.gone()
                 searchIcon.gone()
                 duckPlayerIcon.setImageResource(resolveDuckPlayerIcon(viewState.isAddressBarRebrandEnabled))
                 duckPlayerIcon.show()
@@ -746,6 +760,7 @@ class OmnibarLayout @JvmOverloads constructor(
                 }
                 globeIcon.gone()
                 shieldIcon.gone()
+                novaProfileIcon.gone()
                 searchIcon.gone()
                 duckPlayerIcon.gone()
             }
@@ -813,11 +828,21 @@ class OmnibarLayout @JvmOverloads constructor(
         applyEnabledState(viewState)
     }
 
+    // The toolbar is dark green, so the theme-dark icons sitting on it need a white tint
+    // to stay readable. Icons inside the light address-bar card keep their theme tint.
+    private fun applyNovaProfileToolbarIconTint() {
+        browserMenuImageView.setColorFilter(Color.WHITE)
+        plusIconImageView.setColorFilter(Color.WHITE)
+        (duckAiSidebar as? ImageView)?.setColorFilter(Color.WHITE)
+        (tabsMenu as? NewTabSwitcherButton)?.setIconTint(Color.WHITE)
+    }
+
     private fun renderBrowserMode(viewState: ViewState) {
         // Custom Tab / find-in-page hide the address field. Browser mode must put it back — otherwise
         // a prior hide leaves an empty toolbar strip with only the trailing icons (especially noticeable
         // with a bottom omnibar after tab swipe).
         ensureBrowserAddressFieldVisible()
+        applyNovaProfileToolbarIconTint()
 
         renderOmnibarText(viewState)
         if (viewState.expanded) {
@@ -860,10 +885,12 @@ class OmnibarLayout @JvmOverloads constructor(
         logcat { "Omnibar: renderDuckAiMode $viewState" }
         renderTabIcon(viewState)
         renderOmnibarText(viewState)
+        applyNovaProfileToolbarIconTint()
         // The shield sits outside omnibarIconContainer, so the leadingIconContainer hide in
         // render() doesn't cover it — clear any shield left over from the previous browser page
         // so it doesn't show alongside the Duck.ai header.
         shieldIcon.gone()
+        novaProfileIcon.gone()
         if (viewState.isProgressBarUpgradeEnabled) {
             updatePageLoadProgressBar(viewState)
         } else {
@@ -1624,15 +1651,14 @@ internal fun resolveRebrandPrivacyShieldLayout(
 /**
  * Whether the fire icon should occupy the shared fire/+ leading slot in the omnibar.
  *
- * Fire is the default leading action. The + icon only replaces it inside a Duck.ai view when the
- * native chat input is enabled; with nativeChatInput off (the web-input fallback) the user keeps
- * the fire button even in a Duck.ai view.
+ * NovaProfile has no fire button, so the fire side of the slot is always hidden. The + icon
+ * is governed separately by [shouldShowPlusIcon] and still appears in a Duck.ai view.
  */
 internal fun shouldShowFireIcon(
     showFireIcon: Boolean,
     isDuckAiMode: Boolean,
     isNativeChatInputEnabled: Boolean,
-): Boolean = showFireIcon && !(isDuckAiMode && isNativeChatInputEnabled)
+): Boolean = false
 
 /**
  * Whether the + icon should occupy the shared fire/+ leading slot in the omnibar. Only shown inside
