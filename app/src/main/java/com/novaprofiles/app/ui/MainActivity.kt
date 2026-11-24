@@ -9,7 +9,6 @@ package com.novaprofiles.app.ui
 
 import android.content.Intent
 import android.os.Bundle
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -64,7 +63,6 @@ import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Schedule
@@ -978,8 +976,6 @@ private fun PremiumHeader(
     showBack: Boolean = false,
     onBack: () -> Unit = {},
     logoInCircle: Boolean = false,
-    onBell: (() -> Unit)? = null,
-    onSettings: (() -> Unit)? = null,
     showPremium: Boolean = true
 ) {
     Row(
@@ -1014,34 +1010,9 @@ private fun PremiumHeader(
         }
         Spacer(Modifier.width(8.dp))
         // The title takes the full remaining width so it is never
-        // clipped; the pill and the icons are measured first and keep
-        // their own width.
+        // clipped; the pill is measured first and keeps its own width.
         BrandTitle(Modifier.weight(1f))
-        if (onBell != null) {
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.12f))
-                    .clickable(onClick = onBell),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(Icons.Filled.Notifications, null, tint = Color.White, modifier = Modifier.size(22.dp))
-            }
-            Spacer(Modifier.width(10.dp))
-        }
-        if (onSettings != null) {
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.12f))
-                    .clickable(onClick = onSettings),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(Icons.Filled.Settings, null, tint = Color.White, modifier = Modifier.size(22.dp))
-            }
-        } else if (showPremium) {
+        if (showPremium) {
             PremiumPill()
         }
     }
@@ -1142,14 +1113,13 @@ private fun BottomNavItem(
 
 /**
  * v2.8.25: the dark pill tabs on the Profiles list — "Profiles (N)"
- * selected green, "Settings" and "Proxy" plain white text. Every label
+ * selected green, "Proxy" plain white text. Every label
  * is one line, never wrapped ("Pro/xy" is impossible by construction):
  * small type, tight padding, SpaceEvenly across the full width.
  */
 @Composable
 private fun PillTabs(
     profileCount: Int,
-    onSettings: () -> Unit,
     onProxy: () -> Unit
 ) {
     Row(
@@ -1171,14 +1141,6 @@ private fun PillTabs(
             Icon(Icons.Filled.Layers, null, tint = Color.White, modifier = Modifier.size(16.dp))
             Spacer(Modifier.width(4.dp))
             Text("Profiles ($profileCount)", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp, maxLines = 1, softWrap = false)
-        }
-        Row(
-            modifier = Modifier.clickable(onClick = onSettings).padding(horizontal = 6.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(Icons.Filled.Settings, null, tint = Color.White, modifier = Modifier.size(16.dp))
-            Spacer(Modifier.width(4.dp))
-            Text("Settings", color = Color.White, fontSize = 14.sp, maxLines = 1, softWrap = false)
         }
         Row(
             modifier = Modifier.clickable(onClick = onProxy).padding(horizontal = 6.dp, vertical = 8.dp),
@@ -1270,10 +1232,7 @@ private fun ProfilesScreen(
         WaveHeader {
             PremiumHeader(
                 logoInCircle = true,
-                onBell = {
-                    Toast.makeText(ctx, "No new notifications", Toast.LENGTH_SHORT).show()
-                },
-                onSettings = onOpenSettings
+                showPremium = false
             )
         }
         Column(
@@ -1285,7 +1244,6 @@ private fun ProfilesScreen(
             Spacer(Modifier.height(4.dp))
             PillTabs(
                 profileCount = profiles.size,
-                onSettings = onOpenSettings,
                 onProxy = onOpenProxy
             )
             // Search field + filter button.
@@ -1406,46 +1364,6 @@ private fun ProfilesScreen(
                             onRetryDirect = onRetryDirect
                         )
                     }
-                    item {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(16.dp))
-                                .background(GoMintBg)
-                                .clickable(onClick = onShowAbout)
-                                .padding(horizontal = 16.dp, vertical = 7.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(48.dp)
-                                    .clip(CircleShape)
-                                    .background(GoGreen),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(Icons.Filled.Shield, null, tint = Color.White, modifier = Modifier.size(26.dp))
-                            }
-                            Spacer(Modifier.width(14.dp))
-                            Column(Modifier.weight(1f)) {
-                                Text(
-                                    "Your Profiles are Secure",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 16.sp,
-                                    color = GoTitle,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                Text(
-                                    "Anti-detect protection is active",
-                                    color = GoGreyText,
-                                    fontSize = 14.sp,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                            Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = GoGreyText)
-                        }
-                    }
                     item { Spacer(Modifier.height(8.dp)) }
                 }
             }
@@ -1516,7 +1434,7 @@ private fun ProfileCard(
                         Text(
                             profile.name,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 19.sp,
+                            fontSize = 15.sp,
                             color = GoTitle,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
@@ -1553,7 +1471,7 @@ private fun ProfileCard(
                         Spacer(Modifier.width(5.dp))
                         Text(
                             if (profile.proxyMode == "NONE") "Direct connection" else "Proxy • ${profile.proxyMode}",
-                            fontSize = 14.sp,
+                            fontSize = 11.sp,
                             color = GoGreyText,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
@@ -1563,13 +1481,13 @@ private fun ProfileCard(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Filled.LocationOn, null, tint = GoGreyText, modifier = Modifier.size(15.dp))
                         Spacer(Modifier.width(5.dp))
-                        Text(location, fontSize = 14.sp, color = GoGreyText, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(location, fontSize = 11.sp, color = GoGreyText, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                     Spacer(Modifier.height(3.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Filled.Language, null, tint = GoGreyText, modifier = Modifier.size(15.dp))
                         Spacer(Modifier.width(5.dp))
-                        Text(ipLine, fontSize = 14.sp, color = GoGreyText, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(ipLine, fontSize = 11.sp, color = GoGreyText, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         if (profile.proxyMode == "NONE" && direct == null) {
                             Spacer(Modifier.width(8.dp))
                             TextButton(
@@ -1673,24 +1591,6 @@ private fun ProfileCard(
                     Icon(Icons.Filled.Edit, null, tint = GoTitle, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(6.dp))
                     Text("Edit", fontWeight = FontWeight.Bold, color = GoTitle, maxLines = 1, softWrap = false)
-                }
-                Box(
-                    modifier = Modifier
-                        .width(1.dp)
-                        .height(24.dp)
-                        .background(GoDivider)
-                )
-                Row(
-                    modifier = Modifier
-                        .weight(1f)
-                        .clickable { menuOpen = true }
-                        .padding(vertical = 8.dp),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("•••", fontWeight = FontWeight.Bold, color = GoTitle, fontSize = 16.sp, maxLines = 1, softWrap = false)
-                    Spacer(Modifier.width(6.dp))
-                    Text("More", fontWeight = FontWeight.Bold, color = GoTitle, maxLines = 1, softWrap = false)
                 }
             }
             // v2.8.26 (DDG port): a proxy check / launch result is
