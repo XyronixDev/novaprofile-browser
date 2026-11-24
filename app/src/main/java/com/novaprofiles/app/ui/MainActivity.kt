@@ -35,6 +35,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -721,7 +723,7 @@ fun MainScreen(vm: ProfileViewModel, autoRunProfileId: Long? = null, autoRunQuer
                 onDuplicate = { vm.duplicate(it) },
                 onCheckFingerprint = { labProfile = it },
                 onOpenSettings = { route = HomeRoute.SETTINGS },
-                onOpenProxy = { route = HomeRoute.PROXY },
+                proxyStore = proxyStore,
                 onAddProfile = { openAddForm() },
                 noticeProfileId = launchFailedId,
                 noticeText = proxyCheck,
@@ -1112,15 +1114,16 @@ private fun BottomNavItem(
 }
 
 /**
- * v2.8.25: the dark pill tabs on the Profiles list — "Profiles (N)"
- * selected green, "Proxy" plain white text. Every label
- * is one line, never wrapped ("Pro/xy" is impossible by construction):
- * small type, tight padding, SpaceEvenly across the full width.
+ * The dark pill tabs above the Profiles/Proxy pager. The selected tab
+ * is the green pill and the other is plain white text; every label is
+ * one line, never wrapped. Tapping a tab and swiping the pager switch
+ * the same page, so the proxy list opens in place instead of a new screen.
  */
 @Composable
 private fun PillTabs(
     profileCount: Int,
-    onProxy: () -> Unit
+    selectedPage: Int,
+    onSelectPage: (Int) -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -1134,21 +1137,40 @@ private fun PillTabs(
         Row(
             modifier = Modifier
                 .clip(RoundedCornerShape(24.dp))
-                .background(GoGreen)
+                .background(if (selectedPage == 0) GoGreen else Color.Transparent)
+                .clickable { onSelectPage(0) }
                 .padding(horizontal = 10.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(Icons.Filled.Layers, null, tint = Color.White, modifier = Modifier.size(16.dp))
             Spacer(Modifier.width(4.dp))
-            Text("Profiles ($profileCount)", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp, maxLines = 1, softWrap = false)
+            Text(
+                "Profiles ($profileCount)",
+                color = Color.White,
+                fontWeight = if (selectedPage == 0) FontWeight.Bold else FontWeight.Normal,
+                fontSize = 14.sp,
+                maxLines = 1,
+                softWrap = false
+            )
         }
         Row(
-            modifier = Modifier.clickable(onClick = onProxy).padding(horizontal = 6.dp, vertical = 8.dp),
+            modifier = Modifier
+                .clip(RoundedCornerShape(24.dp))
+                .background(if (selectedPage == 1) GoGreen else Color.Transparent)
+                .clickable { onSelectPage(1) }
+                .padding(horizontal = 10.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(Icons.Filled.Shield, null, tint = Color.White, modifier = Modifier.size(16.dp))
             Spacer(Modifier.width(4.dp))
-            Text("Proxy", color = Color.White, fontSize = 14.sp, maxLines = 1, softWrap = false)
+            Text(
+                "Proxy",
+                color = Color.White,
+                fontWeight = if (selectedPage == 1) FontWeight.Bold else FontWeight.Normal,
+                fontSize = 14.sp,
+                maxLines = 1,
+                softWrap = false
+            )
         }
     }
 }
@@ -1209,7 +1231,7 @@ private fun ProfilesScreen(
     onDuplicate: (Profile) -> Unit,
     onCheckFingerprint: (Profile) -> Unit,
     onOpenSettings: () -> Unit,
-    onOpenProxy: () -> Unit,
+    proxyStore: ProxyStore,
     onAddProfile: () -> Unit,
     onShowAbout: () -> Unit,
     noticeProfileId: Long? = null,
@@ -1218,7 +1240,6 @@ private fun ProfilesScreen(
     directInfo: DirectInfo? = null,
     onRetryDirect: () -> Unit = {}
 ) {
-    val ctx = LocalContext.current
     var filterOpen by remember { mutableStateOf(false) }
     val shown = profiles.filter {
         when (filter) {
@@ -1226,6 +1247,11 @@ private fun ProfilesScreen(
             ProfileFilter.ACTIVE -> isProfileActive(it, savedProxies)
             ProfileFilter.OFFLINE -> !isProfileActive(it, savedProxies)
         }
+    }
+    val scope = rememberCoroutineScope()
+    val pagerState = rememberPagerState(pageCount = { 2 })
+    BackHandler(enabled = pagerState.currentPage == 1) {
+        scope.launch { pagerState.animateScrollToPage(0) }
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -1244,127 +1270,150 @@ private fun ProfilesScreen(
             Spacer(Modifier.height(4.dp))
             PillTabs(
                 profileCount = profiles.size,
-                onProxy = onOpenProxy
+                selectedPage = pagerState.currentPage,
+                onSelectPage = { page -> scope.launch { pagerState.animateScrollToPage(page) } }
             )
-            // Search field + filter button.
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                OutlinedTextField(
-                    value = query,
-                    onValueChange = onQuery,
-                    placeholder = { Text("Search profiles...", color = GoGreyText) },
-                    leadingIcon = {
-                        Icon(Icons.Filled.Search, null, tint = GoGreen)
-                    },
-                    singleLine = true,
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(28.dp),
-                    colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = Color.White,
-                        unfocusedContainerColor = Color.White,
-                        focusedBorderColor = GoGreen,
-                        unfocusedBorderColor = Color.Transparent
-                    )
-                )
-                Spacer(Modifier.width(10.dp))
-                Box {
-                    Box(
-                        modifier = Modifier
-                            .size(52.dp)
-                            .clip(CircleShape)
-                            .background(Color.White)
-                            .clickable { filterOpen = true },
-                        contentAlignment = Alignment.Center
+            HorizontalPager(
+                state = pagerState,
+                beyondViewportPageCount = 1,
+                modifier = Modifier.weight(1f)
+            ) { page ->
+                when (page) {
+                    0 -> Column(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Icon(Icons.Filled.FilterList, null, tint = GoGreen, modifier = Modifier.size(24.dp))
-                    }
-                    DropdownMenu(expanded = filterOpen, onDismissRequest = { filterOpen = false }) {
-                        DropdownMenuItem(
-                            text = { Text("All profiles") },
-                            onClick = { filterOpen = false; onFilter(ProfileFilter.ALL) }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Active only") },
-                            onClick = { filterOpen = false; onFilter(ProfileFilter.ACTIVE) }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Offline only") },
-                            onClick = { filterOpen = false; onFilter(ProfileFilter.OFFLINE) }
-                        )
-                    }
-                }
-            }
-            if (filter != ProfileFilter.ALL) {
-                Text(
-                    when (filter) {
-                        ProfileFilter.ACTIVE -> "Showing active profiles"
-                        ProfileFilter.OFFLINE -> "Showing offline profiles"
-                        else -> ""
-                    },
-                    color = GoGreyText,
-                    fontSize = 13.sp
-                )
-            }
-            if (shown.isEmpty()) {
-                Column(
-                    modifier = Modifier.fillMaxWidth().padding(top = 48.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text("No profiles yet", style = MaterialTheme.typography.titleMedium, color = GoTitle)
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        "Tap Add Profile to create your first profile.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = GoGreyText
-                    )
-                }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    if (runningIds.isNotEmpty()) {
-                        item {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
+                        // Search field + filter button.
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            OutlinedTextField(
+                                value = query,
+                                onValueChange = onQuery,
+                                placeholder = { Text("Search profiles...", color = GoGreyText) },
+                                leadingIcon = {
+                                    Icon(Icons.Filled.Search, null, tint = GoGreen)
+                                },
+                                singleLine = true,
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(28.dp),
+                                colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                                    focusedContainerColor = Color.White,
+                                    unfocusedContainerColor = Color.White,
+                                    focusedBorderColor = GoGreen,
+                                    unfocusedBorderColor = Color.Transparent
+                                )
+                            )
+                            Spacer(Modifier.width(10.dp))
+                            Box {
                                 Box(
                                     modifier = Modifier
-                                        .size(8.dp)
+                                        .size(52.dp)
                                         .clip(CircleShape)
-                                        .background(GoGreen)
-                                )
-                                Spacer(Modifier.width(8.dp))
+                                        .background(Color.White)
+                                        .clickable { filterOpen = true },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(Icons.Filled.FilterList, null, tint = GoGreen, modifier = Modifier.size(24.dp))
+                                }
+                                DropdownMenu(expanded = filterOpen, onDismissRequest = { filterOpen = false }) {
+                                    DropdownMenuItem(
+                                        text = { Text("All profiles") },
+                                        onClick = { filterOpen = false; onFilter(ProfileFilter.ALL) }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Active only") },
+                                        onClick = { filterOpen = false; onFilter(ProfileFilter.ACTIVE) }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Offline only") },
+                                        onClick = { filterOpen = false; onFilter(ProfileFilter.OFFLINE) }
+                                    )
+                                }
+                            }
+                        }
+                        if (filter != ProfileFilter.ALL) {
+                            Text(
+                                when (filter) {
+                                    ProfileFilter.ACTIVE -> "Showing active profiles"
+                                    ProfileFilter.OFFLINE -> "Showing offline profiles"
+                                    else -> ""
+                                },
+                                color = GoGreyText,
+                                fontSize = 13.sp
+                            )
+                        }
+                        if (shown.isEmpty()) {
+                            Column(
+                                modifier = Modifier.fillMaxWidth().padding(top = 48.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text("No profiles yet", style = MaterialTheme.typography.titleMedium, color = GoTitle)
+                                Spacer(Modifier.height(4.dp))
                                 Text(
-                                    "${runningIds.size} profile${if (runningIds.size > 1) "s" else ""} running",
-                                    color = GoGreenDark,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.weight(1f)
+                                    "Tap Add Profile to create your first profile.",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = GoGreyText
                                 )
-                                TextButton(onClick = onStopAll) { Text("Stop all", color = GoStopRed) }
+                            }
+                        } else {
+                            LazyColumn(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                if (runningIds.isNotEmpty()) {
+                                    item {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(8.dp)
+                                                    .clip(CircleShape)
+                                                    .background(GoGreen)
+                                            )
+                                            Spacer(Modifier.width(8.dp))
+                                            Text(
+                                                "${runningIds.size} profile${if (runningIds.size > 1) "s" else ""} running",
+                                                color = GoGreenDark,
+                                                fontWeight = FontWeight.Bold,
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                            TextButton(onClick = onStopAll) { Text("Stop all", color = GoStopRed) }
+                                        }
+                                    }
+                                }
+                                items(shown, key = { it.id }) { p ->
+                                    ProfileCard(
+                                        profile = p,
+                                        entry = proxyEntryFor(p, savedProxies),
+                                        active = isProfileActive(p, savedProxies),
+                                        running = runningIds.contains(p.id),
+                                        syncing = syncingIds.contains(p.id),
+                                        onLaunch = { onLaunch(p) },
+                                        onStop = { onStop(p) },
+                                        onEdit = { onEdit(p) },
+                                        onDelete = { onDelete(p) },
+                                        onDuplicate = { onDuplicate(p) },
+                                        onCheckFingerprint = { onCheckFingerprint(p) },
+                                        notice = if (noticeProfileId == p.id) noticeText else null,
+                                        onDismissNotice = onDismissNotice,
+                                        direct = directInfo,
+                                        onRetryDirect = onRetryDirect
+                                    )
+                                }
+                                item { Spacer(Modifier.height(8.dp)) }
                             }
                         }
                     }
-                    items(shown, key = { it.id }) { p ->
-                        ProfileCard(
-                            profile = p,
-                            entry = proxyEntryFor(p, savedProxies),
-                            active = isProfileActive(p, savedProxies),
-                            running = runningIds.contains(p.id),
-                            syncing = syncingIds.contains(p.id),
-                            onLaunch = { onLaunch(p) },
-                            onStop = { onStop(p) },
-                            onEdit = { onEdit(p) },
-                            onDelete = { onDelete(p) },
-                            onDuplicate = { onDuplicate(p) },
-                            onCheckFingerprint = { onCheckFingerprint(p) },
-                            notice = if (noticeProfileId == p.id) noticeText else null,
-                            onDismissNotice = onDismissNotice,
-                            direct = directInfo,
-                            onRetryDirect = onRetryDirect
-                        )
-                    }
-                    item { Spacer(Modifier.height(8.dp)) }
+                    else -> AddProxyBody(
+                        proxyStore = proxyStore,
+                        savedProxies = savedProxies,
+                        scope = scope,
+                        draft = null,
+                        onApplyToDraft = {},
+                        onDirectForDraft = {},
+                        modifier = Modifier.fillMaxSize()
+                    )
                 }
             }
         }
@@ -2001,6 +2050,38 @@ private fun AddProxyScreen(
     onOpenSettings: () -> Unit,
     onAddProfile: () -> Unit
 ) {
+    Column(modifier = Modifier.fillMaxSize()) {
+        WaveHeader {
+            PremiumHeader(showBack = true, onBack = onBack)
+        }
+        AddProxyBody(
+            proxyStore = proxyStore,
+            savedProxies = savedProxies,
+            scope = scope,
+            draft = draft,
+            onApplyToDraft = onApplyToDraft,
+            onDirectForDraft = onDirectForDraft,
+            modifier = Modifier.weight(1f).padding(horizontal = 16.dp)
+        )
+        PremiumBottomNav(
+            selected = null,
+            onProfiles = onOpenProfiles,
+            onSettings = onOpenSettings,
+            onAddProfile = onAddProfile
+        )
+    }
+}
+
+@Composable
+private fun AddProxyBody(
+    proxyStore: ProxyStore,
+    savedProxies: List<ProxyEntry>,
+    scope: CoroutineScope,
+    draft: Profile?,
+    onApplyToDraft: (ProxyEntry) -> Unit,
+    onDirectForDraft: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     val ctx = LocalContext.current
     val scroll = rememberScrollState()
     var showManual by remember { mutableStateOf(false) }
@@ -2088,17 +2169,10 @@ private fun AddProxyScreen(
         }
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        WaveHeader {
-            PremiumHeader(showBack = true, onBack = onBack)
-        }
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .verticalScroll(scroll)
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
+    Column(
+        modifier = modifier.verticalScroll(scroll),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
             Spacer(Modifier.height(2.dp))
             // Shield-gear avatar + title.
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -2383,13 +2457,6 @@ private fun AddProxyScreen(
                 )
             }
             Spacer(Modifier.height(8.dp))
-        }
-        PremiumBottomNav(
-            selected = null,
-            onProfiles = onOpenProfiles,
-            onSettings = onOpenSettings,
-            onAddProfile = onAddProfile
-        )
     }
 }
 
