@@ -9,7 +9,10 @@ package com.novaprofiles.app.ui
 
 import android.content.Intent
 import android.os.Bundle
+import android.os.Environment
 import android.widget.Toast
+import java.io.File
+import java.io.FileOutputStream
 import java.util.Locale
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
@@ -32,6 +35,9 @@ import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -60,10 +66,20 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DesktopWindows
+import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.TextFields
+import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.FileDownload
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material.icons.filled.Category
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Fingerprint
@@ -91,6 +107,8 @@ import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -105,10 +123,12 @@ import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -124,13 +144,22 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
@@ -467,6 +496,26 @@ fun MainScreen(vm: ProfileViewModel, autoRunProfileId: Long? = null, autoRunQuer
             }
         }
     }
+    // v2.8.39: export straight into NovaProfile/Novaprofiles.zip at the
+    // phone's internal-storage root when All files access is granted;
+    // otherwise fall back to the system save picker.
+    fun exportProfiles() {
+        if (Environment.isExternalStorageManager()) {
+            val dir = File(Environment.getExternalStorageDirectory(), "NovaProfile")
+            dir.mkdirs()
+            val file = File(dir, "Novaprofiles.zip")
+            try {
+                FileOutputStream(file).use { out ->
+                    vm.exportAll(out, profiles, "NovaProfile/Novaprofiles.zip")
+                }
+            } catch (e: Exception) {
+                Toast.makeText(ctx, "Export failed: ${e.message}", Toast.LENGTH_LONG).show()
+            }
+        } else {
+            exportLauncher.launch("Novaprofiles.zip")
+        }
+    }
+
     val importLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()
     ) { uri ->
@@ -494,7 +543,14 @@ fun MainScreen(vm: ProfileViewModel, autoRunProfileId: Long? = null, autoRunQuer
     }
 
     fun openEditForm(p: Profile) {
-        draft = p.copy()
+        // v2.8.39: Proxy & Location removed — its settings live at the
+        // best defaults; Custom language removed — IP-based only.
+        draft = p.copy(
+            timezoneMode = "IP",
+            geoMode = "IP",
+            webrtcMode = "disable",
+            languagesMode = "IP"
+        )
         editingId = p.id
         route = HomeRoute.FORM
     }
@@ -724,7 +780,14 @@ fun MainScreen(vm: ProfileViewModel, autoRunProfileId: Long? = null, autoRunQuer
 
     // Fingerprint Lab (v2.0 Pro) — full-screen check for one profile.
     labProfile?.let { lp ->
-        FingerprintLabScreen(profile = lp, onBack = { labProfile = null })
+        FingerprintLabScreen(
+            profile = lp,
+            onBack = { labProfile = null },
+            onOpenProfiles = { labProfile = null; route = HomeRoute.PROFILES },
+            onOpenSettings = { labProfile = null; route = HomeRoute.SETTINGS },
+            onAddProfile = { labProfile = null; openAddForm() },
+            addEnabled = profiles.size < MAX_PROFILES
+        )
         return
     }
 
@@ -794,7 +857,7 @@ fun MainScreen(vm: ProfileViewModel, autoRunProfileId: Long? = null, autoRunQuer
                 addEnabled = addEnabled
             )
             HomeRoute.SETTINGS -> SettingsScreen(
-                onExport = { exportLauncher.launch("novaprofile-profiles.zip") },
+                onExport = { exportProfiles() },
                 onImport = { importLauncher.launch(arrayOf("*/*")) },
                 onAbout = { showAbout = true },
                 notice = importResult ?: exportResult,
@@ -828,29 +891,7 @@ fun MainScreen(vm: ProfileViewModel, autoRunProfileId: Long? = null, autoRunQuer
     }
 
     if (showAbout) {
-        AlertDialog(
-            onDismissRequest = { showAbout = false },
-            title = { Text("About NovaProfile") },
-            text = {
-                Text(
-                    "NovaProfile ${BuildConfig.VERSION_NAME} " +
-                        "(Build ${BuildConfig.VERSION_CODE}) — multi-profile " +
-                        "anti-detect browser.\n\n" +
-                        "• Up to 25 profiles, everything free, no billing, no trial.\n" +
-                        "• Per-profile proxy, cookies, user-agent, language, " +
-                        "screen, WebGL and Canvas.\n" +
-                        "• Multi-tab browser with history, bookmarks, downloads " +
-                        "and desktop mode.\n" +
-                        "• Fingerprint Lab and Proxy Manager included.\n" +
-                        "• Fingerprint protection is JS-level inside the system " +
-                        "WebView.\n" +
-                        "• One profile runs at a time. Data never leaves your phone."
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = { showAbout = false }) { Text("OK") }
-            }
-        )
+        AboutDialog(onDismiss = { showAbout = false })
     }
 
     // v2.7.2: delete is permanent — one confirm, no trash step.
@@ -869,6 +910,140 @@ fun MainScreen(vm: ProfileViewModel, autoRunProfileId: Long? = null, autoRunQuer
                 TextButton(onClick = { pendingDelete = null }) { Text("Cancel") }
             }
         )
+    }
+}
+
+/** v2.8.39: the rich About card — header, app row, 5 feature rows, mint banner, OK. */
+@Composable
+private fun AboutDialog(onDismiss: () -> Unit) {
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(GoGreen),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("i", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Text("About NovaProfile", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = GoTitle)
+                }
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(2.dp)
+                        .background(GoGreen)
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(56.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(GoGreen),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        NovaMark(color = Color.White, fontSize = 30)
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            "NovaProfile ${BuildConfig.VERSION_NAME} (Build ${BuildConfig.VERSION_CODE})",
+                            fontWeight = FontWeight.Bold, fontSize = 15.sp, color = GoTitle
+                        )
+                        Text("Multi-profile anti-detect browser.", color = GoGreyText, fontSize = 13.sp)
+                    }
+                }
+                AboutFeatureRow(
+                    icon = Icons.Filled.Group, iconBg = GoMintBg, iconTint = GoGreenDark,
+                    title = "Up to 25 Profiles",
+                    desc = "Everything free — no billing, no trial."
+                )
+                AboutFeatureRow(
+                    icon = Icons.Filled.Shield, iconBg = Color(0xFFE8F0FE), iconTint = Color(0xFF1A73E8),
+                    title = "Privacy First",
+                    desc = "Per-profile cookies, proxy, user-agent, language, screen, WebGL and Canvas settings."
+                )
+                AboutFeatureRow(
+                    icon = Icons.Filled.Schedule, iconBg = Color(0xFFF3E8FD), iconTint = Color(0xFF7B1FA2),
+                    title = "Powerful Multi-Tab Browser",
+                    desc = "With history, bookmarks, downloads, desktop mode, and find in page and translate."
+                )
+                AboutFeatureRow(
+                    icon = Icons.Filled.Fingerprint, iconBg = Color(0xFFFDE7D9), iconTint = Color(0xFFE8710A),
+                    title = "Advanced Fingerprint Protection",
+                    desc = "JS-level fingerprint protection inside WebView – it is NOT a Chromium fork " +
+                        "and advanced fingerprint tests can still detect the real device."
+                )
+                AboutFeatureRow(
+                    icon = Icons.Filled.Bolt, iconBg = GoMintBg, iconTint = GoGreenDark,
+                    title = "One Profile, Always",
+                    desc = "Run one profile at a time. Data never leaves your phone."
+                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(GoMintBg)
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Filled.Shield, null, tint = GoGreenDark, modifier = Modifier.size(28.dp))
+                    Spacer(Modifier.width(12.dp))
+                    Column {
+                        Text("Your Privacy. Our Priority.", fontWeight = FontWeight.Bold, color = GoGreenDark)
+                        Text("Browse securely and anonymously with NovaProfile.", color = GoGreyText, fontSize = 13.sp)
+                    }
+                }
+                Button(
+                    onClick = onDismiss,
+                    colors = ButtonDefaults.buttonColors(containerColor = GoGreen),
+                    shape = RoundedCornerShape(28.dp),
+                    modifier = Modifier.fillMaxWidth().height(48.dp)
+                ) {
+                    Text("OK", fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AboutFeatureRow(
+    icon: ImageVector,
+    iconBg: Color,
+    iconTint: Color,
+    title: String,
+    desc: String
+) {
+    Row(verticalAlignment = Alignment.Top) {
+        Box(
+            modifier = Modifier
+                .size(44.dp)
+                .clip(CircleShape)
+                .background(iconBg),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(icon, null, tint = iconTint, modifier = Modifier.size(24.dp))
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(title, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = GoTitle)
+            Text(desc, color = GoGreyText, fontSize = 13.sp)
+        }
     }
 }
 
@@ -1028,7 +1203,7 @@ internal fun PremiumHeader(
  * Add Proxy screen (no item highlighted there).
  */
 @Composable
-private fun PremiumBottomNav(
+internal fun PremiumBottomNav(
     selected: HomeRoute?,
     onProfiles: () -> Unit,
     onSettings: () -> Unit,
@@ -1677,6 +1852,9 @@ private fun AddEditFormScreen(
     onCheckFingerprint: (Profile) -> Unit
 ) {
     var error by remember { mutableStateOf<String?>(null) }
+    var nameError by remember { mutableStateOf(false) }
+    val nameFocus = remember { FocusRequester() }
+    val keyboard = LocalSoftwareKeyboardController.current
     val scope = rememberCoroutineScope()
     val scroll = rememberScrollState()
     var proxyPickerOpen by remember { mutableStateOf(false) }
@@ -1689,6 +1867,10 @@ private fun AddEditFormScreen(
         proxyPickerOpen = false
         extSection = null
     }
+
+    // v2.8.39: a sub-screen always opens at the top — a stale scroll
+    // offset left the previous content showing through.
+    LaunchedEffect(extSection) { scroll.scrollTo(0) }
 
     Column(modifier = Modifier.fillMaxSize()) {
         WaveHeader {
@@ -1813,19 +1995,22 @@ private fun AddEditFormScreen(
                         }
                         OutlinedTextField(
                             value = draft.name,
-                            onValueChange = { onDraft(draft.copy(name = it.take(50))) },
+                            onValueChange = { nameError = false; onDraft(draft.copy(name = it.take(50))) },
                             placeholder = { Text("Enter profile name...", color = GoGreyText, fontSize = 12.sp) },
                             trailingIcon = {
                                 Text("${draft.name.length}/50", color = GoGreyText, fontSize = 10.sp)
                             },
                             singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
+                            isError = nameError,
+                            modifier = Modifier.fillMaxWidth().focusRequester(nameFocus),
                             shape = RoundedCornerShape(12.dp),
                             colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
                                 focusedContainerColor = Color.White,
                                 unfocusedContainerColor = Color.White,
                                 focusedBorderColor = GoGreen,
-                                unfocusedBorderColor = GoDivider
+                                unfocusedBorderColor = GoDivider,
+                                errorBorderColor = Color(0xFFD93025),
+                                errorContainerColor = Color.White
                             )
                         )
                     }
@@ -1866,12 +2051,6 @@ private fun AddEditFormScreen(
                         onClick = { extSection = "overview" }
                     )
                     MenuRow(
-                        icon = { Icon(Icons.Filled.LocationOn, null, tint = GoGreen, modifier = Modifier.size(24.dp)) },
-                        title = "Proxy & Location",
-                        subtitle = "Choose country and proxy settings",
-                        onClick = { extSection = "proxy" }
-                    )
-                    MenuRow(
                         icon = { Icon(Icons.Filled.Language, null, tint = GoGreen, modifier = Modifier.size(24.dp)) },
                         title = "Browser",
                         subtitle = "Configure browser settings",
@@ -1907,7 +2086,16 @@ private fun AddEditFormScreen(
             // Edit: Save Profile (mint, left) + Cancel (white, right).
             val trySave: () -> Unit = {
                 when {
-                    draft.name.isBlank() -> error = "Name is required."
+                    draft.name.isBlank() -> {
+                        // v2.8.39: no error text — the name box turns red,
+                        // the form scrolls to the top, and the keyboard opens.
+                        nameError = true
+                        scope.launch {
+                            scroll.animateScrollTo(0)
+                            nameFocus.requestFocus()
+                            keyboard?.show()
+                        }
+                    }
                     draft.proxyMode != "NONE" && draft.proxyHost.isBlank() ->
                         error = "Proxy host is required for ${draft.proxyMode}."
                     draft.proxyPort !in 1..65535 ->
@@ -2055,9 +2243,9 @@ private fun AddProxyBody(
     val scroll = rememberScrollState()
     var showManual by remember { mutableStateOf(false) }
     var newIp by remember { mutableStateOf("") }
+    var newPort by remember { mutableStateOf("") }
     var newUser by remember { mutableStateOf("") }
     var newPass by remember { mutableStateOf("") }
-    var newName by remember { mutableStateOf("") }
     var showPass by remember { mutableStateOf(false) }
     var adding by remember { mutableStateOf(false) }
     var formError by remember { mutableStateOf<String?>(null) }
@@ -2225,9 +2413,18 @@ private fun AddProxyBody(
                         value = newIp,
                         onValueChange = { newIp = it; formError = null },
                         label = { Text("IP") },
-                        placeholder = { Text("198.165.0.0:8080") },
+                        placeholder = { Text("198.165.0.0") },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true
+                    )
+                    OutlinedTextField(
+                        value = newPort,
+                        onValueChange = { newPort = it.filter { c -> c.isDigit() }; formError = null },
+                        label = { Text("Port") },
+                        placeholder = { Text("8080") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                     )
                     OutlinedTextField(
                         value = newUser,
@@ -2254,20 +2451,13 @@ private fun AddProxyBody(
                             }
                         }
                     )
-                    OutlinedTextField(
-                        value = newName,
-                        onValueChange = { newName = it },
-                        label = { Text("Proxy name") },
-                        placeholder = { Text(suggestedName) },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
-                    )
                     formError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                     Button(
                         onClick = {
-                            val parsed = parseManualIp(newIp) ?: return@Button
-                            val (host, port) = parsed
-                            val name = newName.trim().ifBlank { suggestedName }
+                            val host = newIp.trim()
+                            if (host.isEmpty()) return@Button
+                            val port = newPort.trim().toIntOrNull() ?: 8080
+                            val name = suggestedName
                             adding = true
                             formError = null
                             scope.launch {
@@ -2281,9 +2471,9 @@ private fun AddProxyBody(
                                 if (checked.ok) {
                                     proxyStore.add(checked)
                                     newIp = ""
+                                    newPort = ""
                                     newUser = ""
                                     newPass = ""
-                                    newName = ""
                                     showManual = false
                                     if (draft != null) onApplyToDraft(checked)
                                     else status = "Proxy saved ✓"
@@ -2292,7 +2482,8 @@ private fun AddProxyBody(
                                 }
                             }
                         },
-                        enabled = !adding && parseManualIp(newIp) != null,
+                        enabled = !adding && newIp.trim().isNotEmpty() &&
+                            (newPort.isBlank() || newPort.toIntOrNull() in 1..65535),
                         colors = ButtonDefaults.buttonColors(containerColor = GoGreen),
                         modifier = Modifier.fillMaxWidth()
                     ) { Text(if (adding) "Testing…" else "Add proxy") }
@@ -2941,7 +3132,7 @@ private fun ProxyPickerView(
     }
 }
 
-/** Extended settings (v2.6): the 5 sub-screens. */
+/** Extended settings (v2.6): the sub-screens (v2.8.39: Proxy & Location removed). */
 @Composable
 private fun ExtendedSectionView(
     section: String,
@@ -2953,7 +3144,11 @@ private fun ExtendedSectionView(
     onClearNotice: () -> Unit,
     proxyCheckResult: String?
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    // v2.8.39: solid background so no earlier content shows through.
+    Column(
+        modifier = Modifier.background(GoContentBg),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) {
                 Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
@@ -2961,7 +3156,6 @@ private fun ExtendedSectionView(
             Text(
                 when (section) {
                     "overview" -> "Profile Overview"
-                    "proxy" -> "Proxy & Location"
                     "browser" -> "Browser"
                     "storage" -> "Storage"
                     else -> "Hardware"
@@ -2972,10 +3166,6 @@ private fun ExtendedSectionView(
         }
         when (section) {
             "overview" -> OverviewSection(draft, onDraft)
-            "proxy" -> ProxyLocationSection(
-                draft, onDraft, onOpenProxyPicker,
-                onCheckProxy, onClearNotice, proxyCheckResult
-            )
             "browser" -> BrowserSection(draft, onDraft)
             "storage" -> StorageSection(draft, onDraft)
             else -> HardwareSection(draft, onDraft)
@@ -2991,17 +3181,28 @@ private fun ExtendedSectionView(
 
 @Composable
 private fun OverviewSection(draft: Profile, onDraft: (Profile) -> Unit) {
+    // v2.8.39: the name is set on the main form — here it is read-only;
+    // the Note field is removed.
     OutlinedTextField(
-        value = draft.name, onValueChange = { onDraft(draft.copy(name = it)) },
-        label = { Text("Name") }, modifier = Modifier.fillMaxWidth(), singleLine = true
-    )
-    OutlinedTextField(
-        value = draft.notes, onValueChange = { onDraft(draft.copy(notes = it)) },
-        label = { Text("Note") }, modifier = Modifier.fillMaxWidth()
+        value = draft.name, onValueChange = {},
+        label = { Text("Name") }, modifier = Modifier.fillMaxWidth(), singleLine = true,
+        readOnly = true,
+        colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+            focusedContainerColor = Color.White,
+            unfocusedContainerColor = Color.White,
+            focusedBorderColor = GoGreen,
+            unfocusedBorderColor = GoDivider
+        )
     )
     OutlinedTextField(
         value = draft.folder, onValueChange = { onDraft(draft.copy(folder = it)) },
-        label = { Text("Folder") }, modifier = Modifier.fillMaxWidth(), singleLine = true
+        label = { Text("Folder") }, modifier = Modifier.fillMaxWidth(), singleLine = true,
+        colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+            focusedContainerColor = Color.White,
+            unfocusedContainerColor = Color.White,
+            focusedBorderColor = GoGreen,
+            unfocusedBorderColor = GoDivider
+        )
     )
     DropDownField("Operating System", Profile.OS_OPTIONS, draft.os) { os ->
         val (vendor, renderer) = Profile.osWebgl(os)
@@ -3024,6 +3225,7 @@ private fun OverviewSection(draft: Profile, onDraft: (Profile) -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
+            .background(Color.White)
             .border(1.dp, GoDivider, RoundedCornerShape(12.dp))
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -3047,215 +3249,408 @@ private fun OverviewSection(draft: Profile, onDraft: (Profile) -> Unit) {
     }
 }
 
+/** v2.8.39: a white settings card — mint icon circle, bold title, grey subtitle, content. */
 @Composable
-private fun ProxyLocationSection(
-    draft: Profile,
-    onDraft: (Profile) -> Unit,
-    onOpenProxyPicker: () -> Unit,
-    onCheckProxy: (Profile) -> Unit,
-    onClearNotice: () -> Unit,
-    proxyCheckResult: String?
+private fun SettingCard(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    content: @Composable ColumnScope.() -> Unit
 ) {
-    Text("Proxy", fontWeight = FontWeight.Bold)
-    SectionRow(
-        label = if (draft.proxyMode == "NONE") "Connect proxy"
-        else "${draft.proxyMode} ${draft.proxyHost}:${draft.proxyPort}",
-        sub = if (draft.proxyMode == "NONE") "Tap to pick a country"
-        else "Timezone ${draft.timezone}",
-        onClick = onOpenProxyPicker
-    )
-    Button(onClick = { onClearNotice(); onCheckProxy(draft) }) {
-        Text("Check proxy")
-    }
-    proxyCheckResult?.let { Text(it) }
-    Text("Timezone", fontWeight = FontWeight.Bold)
-    ChoiceChips(
-        options = listOf("IP" to "Fill based on IP", "CUSTOM" to "Custom"),
-        selected = draft.timezoneMode,
-        onSelect = { onDraft(draft.copy(timezoneMode = it)) }
-    )
-    if (draft.timezoneMode == "CUSTOM") {
-        DropDownField("Timezone", Profile.TIMEZONE_OPTIONS, draft.timezone) {
-            onDraft(draft.copy(timezone = it))
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color.White)
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(GoMintBg),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, null, tint = GoGreenDark, modifier = Modifier.size(24.dp))
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(title, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = GoTitle)
+                Text(subtitle, color = GoGreyText, fontSize = 13.sp)
+            }
         }
-    } else {
-        Text("Current: ${draft.timezone} (from the proxy IP)", color = GoGreyText)
+        content()
     }
-    Text("Geolocation", fontWeight = FontWeight.Bold)
-    ChoiceChips(
-        options = listOf("IP" to "Based on IP", "OFF" to "Off"),
-        selected = draft.geoMode,
-        onSelect = { onDraft(draft.copy(geoMode = it)) }
-    )
-    if (draft.geoMode == "IP") {
-        Text(
-            if (draft.latitude != null && draft.longitude != null)
-                "Current: ${draft.latitude}, ${draft.longitude} (from the proxy IP)"
-            else "Set when a proxy connects or the profile runs.",
-            color = GoGreyText
+}
+
+/** v2.8.39: an icon + title + subtitle row with a green toggle on the right. */
+@Composable
+private fun IconToggleRow(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    onChecked: (Boolean) -> Unit
+) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            modifier = Modifier
+                .size(44.dp)
+                .clip(CircleShape)
+                .background(GoMintBg),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(icon, null, tint = GoGreenDark, modifier = Modifier.size(24.dp))
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(title, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = GoTitle)
+            Text(subtitle, color = GoGreyText, fontSize = 13.sp)
+        }
+        Switch(
+            checked = checked,
+            onCheckedChange = onChecked,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = Color.White,
+                checkedTrackColor = GoGreen,
+                uncheckedThumbColor = Color.White,
+                uncheckedTrackColor = GoDivider
+            )
         )
     }
-    Text("WebRTC", fontWeight = FontWeight.Bold)
-    ChoiceChips(
-        options = listOf("disable" to "Disabled", "real" to "Real"),
-        selected = draft.webrtcMode,
-        onSelect = { onDraft(draft.copy(webrtcMode = it)) }
-    )
-    Text("Disabled is safest — Real can leak your real IP through the proxy.", color = GoGreyText)
-    Text("Custom DNS", fontWeight = FontWeight.Bold)
-    Text("Based on ip — DNS resolves through the proxy.", color = GoGreyText)
 }
 
 @Composable
+@OptIn(ExperimentalLayoutApi::class)
 private fun BrowserSection(draft: Profile, onDraft: (Profile) -> Unit) {
-    DropDownField(
-        "User-agent preset", Profile.USER_AGENT_PRESETS,
-        draft.userAgentPreset
-    ) { onDraft(draft.copy(userAgentPreset = it)) }
-    if (draft.userAgentPreset == "Custom") {
-        OutlinedTextField(
-            value = draft.userAgent,
-            onValueChange = { onDraft(draft.copy(userAgent = it)) },
-            label = { Text("Custom user-agent") },
-            modifier = Modifier.fillMaxWidth()
-        )
-    } else {
-        Text(
-            "User-agent: ${if (draft.userAgent.isNotBlank()) draft.userAgent else Profile.defaultUserAgent(draft.userAgentPreset)}",
-            color = GoGreyText
-        )
-    }
-    OutlinedTextField(
-        value = draft.homeUrl, onValueChange = { onDraft(draft.copy(homeUrl = it)) },
-        label = { Text("Start URL") }, modifier = Modifier.fillMaxWidth(), singleLine = true
-    )
-    Text("Languages", fontWeight = FontWeight.Bold)
-    ChoiceChips(
-        options = listOf("IP" to "IP based", "CUSTOM" to "Custom"),
-        selected = draft.languagesMode,
-        onSelect = { onDraft(draft.copy(languagesMode = it)) }
-    )
-    if (draft.languagesMode == "CUSTOM") {
-        OutlinedTextField(
-            value = draft.language, onValueChange = { onDraft(draft.copy(language = it)) },
-            label = { Text("Language (e.g. en-US)") },
-            modifier = Modifier.fillMaxWidth(), singleLine = true
-        )
-    } else {
-        Text("Current: ${draft.language} (from the proxy country)", color = GoGreyText)
-    }
-    Text("Fonts", fontWeight = FontWeight.Bold)
-    SwitchRow(
-        if (draft.fontsMasking) "Masked" else "Real",
-        draft.fontsMasking
-    ) { onDraft(draft.copy(fontsMasking = it)) }
-    Text("Masking hides unusual fonts that could fingerprint the profile.", color = GoGreyText)
-    if (draft.fontsMasking) {
-        val selected = draft.fontsList.split(",").map { it.trim() }
-            .filter { it.isNotEmpty() }.toSet()
-        for (font in Profile.FONT_OPTIONS) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable {
-                        val newList = if (selected.contains(font)) selected - font
-                        else selected + font
-                        onDraft(draft.copy(fontsList = newList.joinToString(",")))
-                    }
-            ) {
-                Checkbox(checked = selected.contains(font), onCheckedChange = null)
-                Text(font)
+    val clipboard = LocalClipboardManager.current
+    val ua = if (draft.userAgent.isNotBlank()) draft.userAgent
+    else Profile.defaultUserAgent(draft.userAgentPreset)
+    SettingCard(
+        icon = Icons.Filled.Language,
+        title = "User-Agent Preset",
+        subtitle = "Choose a browser identity (User-Agent)."
+    ) {
+        DropDownField("User-agent preset", Profile.USER_AGENT_PRESETS, draft.userAgentPreset) {
+            onDraft(draft.copy(userAgentPreset = it))
+        }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(GoMintBg)
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(Icons.Filled.Info, null, tint = GoGreenDark, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(8.dp))
+            Column(Modifier.weight(1f)) {
+                Text("User-Agent:", fontWeight = FontWeight.Bold, color = GoGreenDark, fontSize = 13.sp)
+                Text(ua, color = GoTitle, fontSize = 13.sp)
+            }
+            IconButton(onClick = { clipboard.setText(AnnotatedString(ua)) }) {
+                Icon(Icons.Filled.ContentCopy, "Copy user-agent", tint = GoGreenDark)
             }
         }
-    } else {
-        Text("Real fonts installed on this device are reported — no selection needed.", color = GoGreyText)
+    }
+    SettingCard(
+        icon = Icons.Filled.Link,
+        title = "Start URL",
+        subtitle = "The webpage to open when this profile starts."
+    ) {
+        OutlinedTextField(
+            value = draft.homeUrl, onValueChange = { onDraft(draft.copy(homeUrl = it)) },
+            label = { Text("Start URL") }, modifier = Modifier.fillMaxWidth(), singleLine = true,
+            colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                focusedContainerColor = Color.White,
+                unfocusedContainerColor = Color.White,
+                focusedBorderColor = GoGreen,
+                unfocusedBorderColor = GoDivider
+            )
+        )
+    }
+    SettingCard(
+        icon = Icons.Filled.Translate,
+        title = "Languages",
+        subtitle = "Set the browser language preference."
+    ) {
+        // v2.8.39: Custom language removed — IP-based only.
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(GoGreen)
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                Text("✓ IP Based", color = Color.White, fontWeight = FontWeight.Bold)
+            }
+        }
+        Text("Current: ${draft.language} (from the proxy country)", color = GoGreyText)
+    }
+    SettingCard(
+        icon = Icons.Filled.TextFields,
+        title = "Fonts",
+        subtitle = "Control which system fonts are exposed to the browser."
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Filled.Shield, null, tint = GoGreenDark, modifier = Modifier.size(24.dp))
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text("Masked Fonts", fontWeight = FontWeight.Bold, color = GoTitle)
+                Text("Masking hides unusual fonts that could fingerprint the profile.", color = GoGreyText, fontSize = 13.sp)
+            }
+            Switch(
+                checked = draft.fontsMasking,
+                onCheckedChange = { onDraft(draft.copy(fontsMasking = it)) },
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = Color.White,
+                    checkedTrackColor = GoGreen,
+                    uncheckedThumbColor = Color.White,
+                    uncheckedTrackColor = GoDivider
+                )
+            )
+        }
+        if (draft.fontsMasking) {
+            val selected = draft.fontsList.split(",").map { it.trim() }
+                .filter { it.isNotEmpty() }.toSet()
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(GoMintBg)
+                    .padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Filled.Category, null, tint = GoGreenDark, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Available Fonts", fontWeight = FontWeight.Bold, color = GoTitle)
+                    Spacer(Modifier.weight(1f))
+                    Text("${selected.size} of ${Profile.FONT_OPTIONS.size} selected", color = GoGreenDark, fontSize = 13.sp)
+                }
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    maxItemsInEachRow = 3
+                ) {
+                    for (font in Profile.FONT_OPTIONS) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color.White)
+                                .clickable {
+                                    val newList = if (selected.contains(font)) selected - font
+                                    else selected + font
+                                    onDraft(draft.copy(fontsList = newList.joinToString(",")))
+                                }
+                                .padding(horizontal = 8.dp, vertical = 6.dp)
+                        ) {
+                            Checkbox(checked = selected.contains(font), onCheckedChange = null)
+                            Text(font, fontSize = 13.sp)
+                        }
+                    }
+                }
+            }
+        } else {
+            Text("Real fonts installed on this device are reported — no selection needed.", color = GoGreyText)
+        }
     }
 }
 
 @Composable
 private fun StorageSection(draft: Profile, onDraft: (Profile) -> Unit) {
-    SwitchRow("Save history", draft.saveHistory) {
-        onDraft(draft.copy(saveHistory = it))
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color.White)
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        IconToggleRow(
+            icon = Icons.Filled.History,
+            title = "Save history",
+            subtitle = "Keep your browsing history for later access.",
+            checked = draft.saveHistory
+        ) { onDraft(draft.copy(saveHistory = it)) }
+        Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(GoDivider))
+        IconToggleRow(
+            icon = Icons.Filled.Bookmark,
+            title = "Save bookmarks",
+            subtitle = "Store your bookmarks securely.",
+            checked = draft.saveBookmarks
+        ) { onDraft(draft.copy(saveBookmarks = it)) }
+        Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(GoDivider))
+        IconToggleRow(
+            icon = Icons.Filled.Storage,
+            title = "Local storage and indexedDB",
+            subtitle = "Save site data like cookies, storage and database.",
+            checked = draft.domStorage
+        ) { onDraft(draft.copy(domStorage = it)) }
     }
-    SwitchRow("Save bookmarks", draft.saveBookmarks) {
-        onDraft(draft.copy(saveBookmarks = it))
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(GoMintBg)
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(Icons.Filled.Shield, null, tint = GoGreenDark, modifier = Modifier.size(32.dp))
+        Spacer(Modifier.width(12.dp))
+        Box(
+            modifier = Modifier
+                .width(2.dp)
+                .height(56.dp)
+                .background(GoGreen)
+        )
+        Spacer(Modifier.width(12.dp))
+        Column {
+            Text("Important Note:", fontWeight = FontWeight.Bold, color = GoGreenDark)
+            Text(
+                "Lock session, Google services, passwords, plugins and extensions " +
+                    "are not available in the system WebView — they are not shown here.",
+                color = GoTitle,
+                fontSize = 13.sp
+            )
+        }
     }
-    SwitchRow("Local storage and indexedDB", draft.domStorage) {
-        onDraft(draft.copy(domStorage = it))
-    }
-    Text(
-        "Lock session, Google services, passwords, plugins and extensions " +
-            "are not available in the system WebView — they are not shown here.",
-        color = GoGreyText
-    )
 }
 
 @Composable
 private fun HardwareSection(draft: Profile, onDraft: (Profile) -> Unit) {
     val resOptions = Profile.RESOLUTIONS.map { "${it.first}x${it.second}" }
     val resCurrent = "${draft.screenWidth}x${draft.screenHeight}"
-    DropDownField(
-        "Resolution",
-        if (resOptions.contains(resCurrent)) resOptions else resOptions + resCurrent,
-        resCurrent
-    ) { v ->
-        val parts = v.split("x")
-        onDraft(
-            draft.copy(
-                screenWidth = parts[0].toIntOrNull() ?: draft.screenWidth,
-                screenHeight = parts.getOrNull(1)?.toIntOrNull() ?: draft.screenHeight
+    SettingCard(
+        icon = Icons.Filled.DesktopWindows,
+        title = "Resolution",
+        subtitle = "Screen size reported to websites."
+    ) {
+        DropDownField(
+            "Resolution",
+            if (resOptions.contains(resCurrent)) resOptions else resOptions + resCurrent,
+            resCurrent
+        ) { v ->
+            val parts = v.split("x")
+            onDraft(
+                draft.copy(
+                    screenWidth = parts[0].toIntOrNull() ?: draft.screenWidth,
+                    screenHeight = parts.getOrNull(1)?.toIntOrNull() ?: draft.screenHeight
+                )
             )
+        }
+    }
+    SettingCard(
+        icon = Icons.Filled.Memory,
+        title = "Device memory",
+        subtitle = "RAM reported to websites."
+    ) {
+        DropDownField(
+            "Device memory",
+            listOf("1 GB", "2 GB", "4 GB", "8 GB"),
+            "${draft.deviceMemory} GB"
+        ) { v ->
+            onDraft(draft.copy(deviceMemory = v.removeSuffix(" GB").toIntOrNull() ?: draft.deviceMemory))
+        }
+    }
+    SettingCard(
+        icon = Icons.Filled.Memory,
+        title = "Number of threads",
+        subtitle = "CPU cores reported to websites."
+    ) {
+        DropDownField(
+            "Number of threads",
+            Profile.THREAD_COUNTS.map { it.toString() },
+            draft.hardwareConcurrency.toString()
+        ) { v ->
+            onDraft(draft.copy(hardwareConcurrency = v.toIntOrNull() ?: draft.hardwareConcurrency))
+        }
+    }
+    SettingCard(
+        icon = Icons.Filled.PlayArrow,
+        title = "Media devices",
+        subtitle = "Camera and microphone reported to websites."
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(if (draft.mediaMasked) "Masked • 0/0/0" else "Real", fontWeight = FontWeight.Bold, color = GoTitle)
+            }
+            Switch(
+                checked = draft.mediaMasked,
+                onCheckedChange = { onDraft(draft.copy(mediaMasked = it)) },
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = Color.White,
+                    checkedTrackColor = GoGreen,
+                    uncheckedThumbColor = Color.White,
+                    uncheckedTrackColor = GoDivider
+                )
+            )
+        }
+    }
+    SettingCard(
+        icon = Icons.Filled.Palette,
+        title = "Canvas",
+        subtitle = "How the canvas fingerprint is handled."
+    ) {
+        ChoiceChips(
+            options = listOf("real" to "Real", "noise" to "Noise", "block" to "Block"),
+            selected = draft.canvasMode,
+            onSelect = { onDraft(draft.copy(canvasMode = it)) }
         )
     }
-    DropDownField(
-        "Device memory",
-        listOf("1 GB", "2 GB", "4 GB", "8 GB"),
-        "${draft.deviceMemory} GB"
-    ) { v ->
-        onDraft(draft.copy(deviceMemory = v.removeSuffix(" GB").toIntOrNull() ?: draft.deviceMemory))
+    SettingCard(
+        icon = Icons.Filled.Image,
+        title = "WebGL image",
+        subtitle = "How WebGL rendering is reported."
+    ) {
+        ChoiceChips(
+            options = listOf("REAL" to "Real", "MASKED" to "Masked"),
+            selected = draft.webglMode,
+            onSelect = { onDraft(draft.copy(webglMode = it)) }
+        )
     }
-    DropDownField(
-        "Number of threads",
-        Profile.THREAD_COUNTS.map { it.toString() },
-        draft.hardwareConcurrency.toString()
-    ) { v ->
-        onDraft(draft.copy(hardwareConcurrency = v.toIntOrNull() ?: draft.hardwareConcurrency))
-    }
-    Text("Media devices", fontWeight = FontWeight.Bold)
-    SwitchRow(
-        if (draft.mediaMasked) "Masked • 0/0/0" else "Real",
-        draft.mediaMasked
-    ) { onDraft(draft.copy(mediaMasked = it)) }
-    Text("Canvas", fontWeight = FontWeight.Bold)
-    ChoiceChips(
-        options = listOf("real" to "Real", "noise" to "Noise", "block" to "Block"),
-        selected = draft.canvasMode,
-        onSelect = { onDraft(draft.copy(canvasMode = it)) }
-    )
-    Text("WebGL image", fontWeight = FontWeight.Bold)
-    ChoiceChips(
-        options = listOf("REAL" to "Real", "MASKED" to "Masked"),
-        selected = draft.webglMode,
-        onSelect = { onDraft(draft.copy(webglMode = it)) }
-    )
     if (draft.webglMode == "MASKED") {
-        Text("WebGL metadata", fontWeight = FontWeight.Bold)
-        OutlinedTextField(
-            value = draft.webglVendor, onValueChange = { onDraft(draft.copy(webglVendor = it)) },
-            label = { Text("WebGL vendor") },
-            modifier = Modifier.fillMaxWidth(), singleLine = true
-        )
-        OutlinedTextField(
-            value = draft.webglRenderer, onValueChange = { onDraft(draft.copy(webglRenderer = it)) },
-            label = { Text("WebGL renderer") },
-            modifier = Modifier.fillMaxWidth(), singleLine = true
+        SettingCard(
+            icon = Icons.Filled.Category,
+            title = "WebGL metadata",
+            subtitle = "Vendor and renderer reported to websites."
+        ) {
+            OutlinedTextField(
+                value = draft.webglVendor, onValueChange = { onDraft(draft.copy(webglVendor = it)) },
+                label = { Text("WebGL vendor") },
+                modifier = Modifier.fillMaxWidth(), singleLine = true,
+                colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = Color.White,
+                    unfocusedContainerColor = Color.White,
+                    focusedBorderColor = GoGreen,
+                    unfocusedBorderColor = GoDivider
+                )
+            )
+            OutlinedTextField(
+                value = draft.webglRenderer, onValueChange = { onDraft(draft.copy(webglRenderer = it)) },
+                label = { Text("WebGL renderer") },
+                modifier = Modifier.fillMaxWidth(), singleLine = true,
+                colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = Color.White,
+                    unfocusedContainerColor = Color.White,
+                    focusedBorderColor = GoGreen,
+                    unfocusedBorderColor = GoDivider
+                )
+            )
+        }
+    }
+    SettingCard(
+        icon = Icons.Filled.VolumeUp,
+        title = "Audio context",
+        subtitle = "How the audio fingerprint is handled."
+    ) {
+        ChoiceChips(
+            options = listOf("REAL" to "Real", "MASKED" to "Masked"),
+            selected = draft.audioMode,
+            onSelect = { onDraft(draft.copy(audioMode = it)) }
         )
     }
-    Text("Audio context", fontWeight = FontWeight.Bold)
-    ChoiceChips(
-        options = listOf("REAL" to "Real", "MASKED" to "Masked"),
-        selected = draft.audioMode,
-        onSelect = { onDraft(draft.copy(audioMode = it)) }
-    )
 }
