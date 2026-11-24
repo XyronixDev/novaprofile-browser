@@ -545,8 +545,14 @@ fun MainScreen(vm: ProfileViewModel, autoRunProfileId: Long? = null, autoRunQuer
         val clearTabs = NovaProfileSession.lastTabProfileId(ctx) != p.id
         NovaProfileSession.setLastTabProfileId(ctx, p.id)
         if (clearTabs) NovaProfileSession.setTabsClearPending(ctx, true)
+        // Open the profile's home page (Google by default), not a blank
+        // tab — a blank tab focuses the omnibar and pops the keyboard.
         ctx.startActivity(
-            BrowserActivity.intent(ctx, launchSource = AppLauncher, queryExtra = query).apply {
+            BrowserActivity.intent(
+                ctx,
+                launchSource = AppLauncher,
+                queryExtra = query ?: p.homeUrl
+            ).apply {
                 putExtra(NovaProfileSession.EXTRA_RELOAD_TAB, true)
             }
         )
@@ -555,123 +561,87 @@ fun MainScreen(vm: ProfileViewModel, autoRunProfileId: Long? = null, autoRunQuer
 
     /**
      * The card Run tap, shared by the tap and the post-restart
-     * auto-run (v2.8.17): re-sync the proxy IP's timezone +
-     * coordinates first when the profile follows the IP, then launch
-     * it — with the fresh values, never the stale stored ones
-     * (v2.8.2). The optional query is only for the fingerprint
-     * lab's whoer check after a restart.
+     * auto-run (v2.8.17): launch at once with the stored values, and
+     * refresh the proxy IP's timezone + coordinates in the background
+     * for the next launch when the profile follows the IP — the
+     * refresh is a network call through the proxy and must never
+     * delay the browser opening. The optional query is only for the
+     * fingerprint lab's whoer check after a restart.
      */
     fun runProfile(p: Profile, query: String? = null) {
         launchFailedId = null
-        // v2.8.19: show the card spinner from the tap until the browser
-        // opens (or fails) — in the skip path there was NO feedback at
-        // all between Play and the browser, so the restart looked dead.
+        // The browser must open immediately on tap. The proxy location
+        // re-sync is a network call through the proxy (seconds on a slow
+        // one) and must never block the launch — refresh it in the
+        // background for the next launch instead; this launch uses the
+        // stored (already tested) values.
         syncingIds = syncingIds + p.id
-        // v2.6 smart 90% fix: before opening the browser,
-        // re-resolve the proxy IP's CURRENT timezone +
-        // coordinates (one ip-api call through the proxy)
-        // and save them, so the run never uses a stale
-        // timezone. Free US proxies sit in Mountain View
-        // (America/Los_Angeles) while the country default
-        // is New York — a 3-hour mismatch whoer deducts
-        // for. On lookup failure, launch with the stored
-        // values instead of blocking.
-        // v2.8.18: skip the re-sync when this exact proxy was already
-        // resolved and the profile already carries its location. The
-        // editor test does that seconds before Save, so re-resolving on
-        // every Play tap added up to 12s of blank spinner (6s connect
-        // + 6s read through a slow proxy) for zero benefit — the user
-        // read it, reasonably, as "browser never opens". Only re-sync
-        // when the saved entry is untested or its timezone no longer
-        // matches the profile (the proxy rotated to a new city).
-        val savedEntry = if (p.proxyMode != "NONE") {
-            proxyStore.proxies.value.firstOrNull {
+        if (p.proxyMode != "NONE" &&
+            (p.timezoneMode == "IP" || p.geoMode == "IP")
+        ) {
+            val savedEntry = proxyStore.proxies.value.firstOrNull {
                 it.host == p.proxyHost && it.port == p.proxyPort
             }
-        } else null
-        val alreadySynced = savedEntry != null && savedEntry.ok &&
-            savedEntry.lastIp.isNotBlank() &&
-            savedEntry.lastTimezone.isNotBlank() &&
-            (p.timezoneMode != "IP" || savedEntry.lastTimezone == p.timezone)
-        if (p.proxyMode != "NONE" &&
-            (p.timezoneMode == "IP" || p.geoMode == "IP") && !alreadySynced
-        ) {
-            scope.launch {
-                try {
-                    val entry = ProxyEntry(
-                        name = p.name,
-                        mode = p.proxyMode, host = p.proxyHost,
-                        port = p.proxyPort, user = p.proxyUser,
-                        pass = p.proxyPass
-                    )
-                    val loc = proxyStore.resolveLocation(entry)
-                    // v2.8.2: launch with the FRESH profile — the old
-                    // code saved the re-synced timezone to Room but
-                    // launched the browser with the STALE profile, so
-                    // whoer saw a timezone mismatch (78% instead of
-                    // ~90%).
-                    var toLaunch = p
-                    if (loc != null) {
-                        val updated = p.copy(
-                            timezone = if (p.timezoneMode == "IP") loc.timezone else p.timezone,
-                            latitude = if (p.geoMode == "IP" && loc.lat != 0.0) loc.lat else p.latitude,
-                            longitude = if (p.geoMode == "IP" && loc.lon != 0.0) loc.lon else p.longitude
-                        )
-                        vm.updateNow(updated)
-                        toLaunch = updated
-                        val saved = proxyStore.proxies.value.firstOrNull {
-                            it.host == p.proxyHost && it.port == p.proxyPort
-                        }
-                        if (saved != null) {
-                            proxyStore.update(
-                                saved.copy(
-                                    lastIp = loc.ip, lastTimezone = loc.timezone,
-                                    lastLat = loc.lat, lastLon = loc.lon, ok = true
-                                )
-                            )
-                        }
-                    }
-                    if (launchProfile(toLaunch, query)) {
-                        runningIds = runningIds + p.id
-                        vm.markRun(p.id)
-                    }
-                } catch (e: Exception) {
-                    // v2.8.18: never strand the card on a spinner — any
-                    // failure in the sync launches with the stored
-                    // values instead of dying mid-sync.
+            val alreadySynced = savedEntry != null && savedEntry.ok &&
+                savedEntry.lastIp.isNotBlank() &&
+                savedEntry.lastTimezone.isNotBlank() &&
+                (p.timezoneMode != "IP" || savedEntry.lastTimezone == p.timezone)
+            if (!alreadySynced) {
+                scope.launch {
                     try {
-                        if (launchProfile(p, query)) {
-                            runningIds = runningIds + p.id
-                            vm.markRun(p.id)
+                        val entry = ProxyEntry(
+                            name = p.name,
+                            mode = p.proxyMode, host = p.proxyHost,
+                            port = p.proxyPort, user = p.proxyUser,
+                            pass = p.proxyPass
+                        )
+                        val loc = proxyStore.resolveLocation(entry)
+                        if (loc != null) {
+                            val updated = p.copy(
+                                timezone = if (p.timezoneMode == "IP") loc.timezone else p.timezone,
+                                latitude = if (p.geoMode == "IP" && loc.lat != 0.0) loc.lat else p.latitude,
+                                longitude = if (p.geoMode == "IP" && loc.lon != 0.0) loc.lon else p.longitude
+                            )
+                            vm.updateNow(updated)
+                            val saved = proxyStore.proxies.value.firstOrNull {
+                                it.host == p.proxyHost && it.port == p.proxyPort
+                            }
+                            if (saved != null) {
+                                proxyStore.update(
+                                    saved.copy(
+                                        lastIp = loc.ip, lastTimezone = loc.timezone,
+                                        lastLat = loc.lat, lastLon = loc.lon, ok = true
+                                    )
+                                )
+                            }
                         }
-                    } catch (e2: Exception) {
+                    } catch (e: Exception) {
+                        // Background refresh only — a failure here must
+                        // not touch the launch already in flight.
                     }
-                } finally {
-                    syncingIds = syncingIds - p.id
                 }
             }
-        } else {
-            scope.launch {
-                try {
-                    // Direct profiles carry the detected connection
-                    // timezone when it is known, so the run never uses
-                    // the "Auto" placeholder. Detection already ran at
-                    // startup, so this never waits on the network.
-                    var toLaunch = p
-                    if (p.proxyMode == "NONE" && p.timezoneMode == "IP") {
-                        val tz = directInfo?.timezone.orEmpty()
-                        if (tz.isNotBlank() && tz != p.timezone) {
-                            toLaunch = p.copy(timezone = tz)
-                            vm.updateNow(toLaunch)
-                        }
+        }
+        scope.launch {
+            try {
+                // Direct profiles carry the detected connection
+                // timezone when it is known, so the run never uses
+                // the "Auto" placeholder. Detection already ran at
+                // startup, so this never waits on the network.
+                var toLaunch = p
+                if (p.proxyMode == "NONE" && p.timezoneMode == "IP") {
+                    val tz = directInfo?.timezone.orEmpty()
+                    if (tz.isNotBlank() && tz != p.timezone) {
+                        toLaunch = p.copy(timezone = tz)
+                        vm.updateNow(toLaunch)
                     }
-                    if (launchProfile(toLaunch, query)) {
-                        runningIds = runningIds + p.id
-                        vm.markRun(p.id)
-                    }
-                } finally {
-                    syncingIds = syncingIds - p.id
                 }
+                if (launchProfile(toLaunch, query)) {
+                    runningIds = runningIds + p.id
+                    vm.markRun(p.id)
+                }
+            } finally {
+                syncingIds = syncingIds - p.id
             }
         }
     }
