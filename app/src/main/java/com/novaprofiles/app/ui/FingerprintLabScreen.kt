@@ -18,11 +18,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -35,11 +38,26 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.DesktopWindows
+import androidx.compose.material.icons.filled.Fingerprint
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.Layers
+import androidx.compose.material.icons.filled.Memory
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.TouchApp
+import androidx.compose.material.icons.filled.Wifi
 import com.novaprofiles.app.data.Profile
 import com.novaprofiles.app.util.FingerprintJs
 import com.novaprofiles.app.util.FingerprintLab
@@ -69,8 +87,30 @@ private data class LabRow(
     val good: Boolean? // true green, false red, null grey
 )
 
+// v2.8.39: one icon per check row, as in the reference design.
+private fun labIconFor(label: String): ImageVector = when (label) {
+    "User-Agent" -> Icons.Filled.Person
+    "Language" -> Icons.Filled.Language
+    "Timezone", "Timezone offset" -> Icons.Filled.Schedule
+    "Date string" -> Icons.Filled.DateRange
+    "Hardware" -> Icons.Filled.Memory
+    "WebGL renderer" -> Icons.Filled.DesktopWindows
+    "WebRTC local IP" -> Icons.Filled.Wifi
+    "Do Not Track" -> Icons.Filled.Shield
+    "Platform" -> Icons.Filled.Layers
+    "Touch points" -> Icons.Filled.TouchApp
+    else -> Icons.Filled.Info
+}
+
 @Composable
-fun FingerprintLabScreen(profile: Profile, onBack: () -> Unit) {
+fun FingerprintLabScreen(
+    profile: Profile,
+    onBack: () -> Unit,
+    onOpenProfiles: () -> Unit = {},
+    onOpenSettings: () -> Unit = {},
+    onAddProfile: () -> Unit = {},
+    addEnabled: Boolean = true
+) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var result by remember { mutableStateOf<FingerprintLab.LabResult?>(null) }
@@ -259,12 +299,33 @@ fun FingerprintLabScreen(profile: Profile, onBack: () -> Unit) {
                 .padding(horizontal = 16.dp)
         ) {
             Spacer(Modifier.height(4.dp))
-            Text("Check Fingerprint", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = GoTitle)
-            Text(
-                "What a website would see for ${profile.name}, checked live.",
-                color = GoGreyText,
-                fontSize = 12.sp
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .background(GoMintBg),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Filled.Fingerprint, null, tint = GoGreenDark, modifier = Modifier.size(28.dp))
+                }
+                Spacer(Modifier.width(12.dp))
+                Box(
+                    modifier = Modifier
+                        .width(1.dp)
+                        .height(40.dp)
+                        .background(GoDivider)
+                )
+                Spacer(Modifier.width(12.dp))
+                Column {
+                    Text("Check Fingerprint", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = GoTitle)
+                    Text(
+                        "What a website would see for ${profile.name}, checked live.",
+                        color = GoGreyText,
+                        fontSize = 12.sp
+                    )
+                }
+            }
             Spacer(Modifier.height(12.dp))
             Button(
                 onClick = { runCheck() },
@@ -282,6 +343,8 @@ fun FingerprintLabScreen(profile: Profile, onBack: () -> Unit) {
                     Spacer(Modifier.size(8.dp))
                     Text("Checking… (about 3s)")
                 } else {
+                    Icon(Icons.Filled.Refresh, null, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.size(8.dp))
                     Text(if (result == null) "Run fingerprint check" else "Run again")
                 }
             }
@@ -318,6 +381,8 @@ fun FingerprintLabScreen(profile: Profile, onBack: () -> Unit) {
                 shape = RoundedCornerShape(28.dp),
                 modifier = Modifier.fillMaxWidth().height(48.dp)
             ) {
+                Icon(Icons.Filled.Language, null, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.size(8.dp))
                 Text("Check on whoer.net")
             }
             Spacer(Modifier.height(12.dp))
@@ -340,54 +405,76 @@ fun FingerprintLabScreen(profile: Profile, onBack: () -> Unit) {
             ) {
                 items(rows.size) { i ->
                     val row = rows[i]
-                    Column(
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(12.dp))
                             .background(Color.White)
                             .padding(12.dp)
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                row.label,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.weight(1f)
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(GoMintBg),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                labIconFor(row.label),
+                                null,
+                                tint = GoGreenDark,
+                                modifier = Modifier.size(22.dp)
                             )
-                            val chipColor = when (row.good) {
-                                true -> GoGreenDark
-                                false -> Color(0xFFD93025)
-                                null -> GoGreyText
-                            }
-                            val chipBg = when (row.good) {
-                                true -> Color(0xFFE6F4EA)
-                                false -> Color(0xFFFCE8E6)
-                                null -> Color(0xFFF1F3F4)
-                            }
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(chipBg)
-                                    .padding(horizontal = 10.dp, vertical = 4.dp)
-                            ) {
-                                Text(row.status, fontSize = 12.sp, color = chipColor, fontWeight = FontWeight.Bold)
-                            }
                         }
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            row.detected,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color(0xFF202124)
-                        )
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(row.label, fontWeight = FontWeight.Bold)
+                            Text(
+                                row.detected,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color(0xFF202124)
+                            )
+                        }
+                        val chipColor = when (row.good) {
+                            true -> GoGreenDark
+                            false -> Color(0xFFD93025)
+                            null -> GoGreyText
+                        }
+                        val chipBg = when (row.good) {
+                            true -> Color(0xFFE6F4EA)
+                            false -> Color(0xFFFCE8E6)
+                            null -> Color(0xFFF1F3F4)
+                        }
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(chipBg)
+                                .padding(horizontal = 10.dp, vertical = 4.dp)
+                        ) {
+                            Text(row.status, fontSize = 12.sp, color = chipColor, fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
             }
             Spacer(Modifier.height(8.dp))
-            Text(
-                "JS-level check inside the system WebView — not an engine-level " +
-                    "test. Advanced fingerprint services can still detect the device.",
-                color = GoGreyText,
-                style = MaterialTheme.typography.bodySmall
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(GoMintBg)
+                    .padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Filled.Info, null, tint = GoGreenDark, modifier = Modifier.size(22.dp))
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    "JS-level check inside the system WebView — not an engine-level " +
+                        "test. Advanced fingerprint services can still detect the device.",
+                    color = GoGreyText,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
             // Hidden lab WebView (1dp) — runs the checks, never shown.
             AndroidView(
                 factory = { ctx ->
@@ -418,5 +505,13 @@ fun FingerprintLabScreen(profile: Profile, onBack: () -> Unit) {
                 modifier = Modifier.size(1.dp)
             )
         }
+        // v2.8.39: the permanent bottom navigation, as on every screen.
+        PremiumBottomNav(
+            selected = null,
+            onProfiles = onOpenProfiles,
+            onSettings = onOpenSettings,
+            onAddProfile = onAddProfile,
+            addEnabled = addEnabled
+        )
     }
 }
