@@ -1,5 +1,3 @@
-// File-level opt-in: TopAppBar is @ExperimentalMaterial3Api in BOM 2026.08.00.
-@file:OptIn(ExperimentalMaterial3Api::class)
 package com.novaprofiles.app.ui
 
 import android.os.Handler
@@ -8,6 +6,7 @@ import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -21,18 +20,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -254,36 +246,32 @@ fun FingerprintLabScreen(profile: Profile, onBack: () -> Unit) {
     val goodCount = scored.count { it.good == true }
     val score = if (scored.isEmpty()) null else (goodCount * 100 / scored.size)
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Fingerprint Lab") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                }
-            )
-        }
-    ) { padding ->
+    BackHandler { onBack() }
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(GoContentBg)
+    ) {
+        WaveHeader { PremiumHeader(logoInCircle = true) }
         Column(
             modifier = Modifier
-                .fillMaxSize()
-                .background(Color.White)
-                .padding(padding)
-                .padding(16.dp)
+                .weight(1f)
+                .padding(horizontal = 16.dp)
         ) {
-            Text(profile.name, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+            Spacer(Modifier.height(4.dp))
+            Text("Check Fingerprint", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = GoTitle)
             Text(
-                "What a website would see for this profile, checked live.",
-                color = GoGreyText
+                "What a website would see for ${profile.name}, checked live.",
+                color = GoGreyText,
+                fontSize = 12.sp
             )
             Spacer(Modifier.height(12.dp))
             Button(
                 onClick = { runCheck() },
                 enabled = !running,
                 colors = ButtonDefaults.buttonColors(containerColor = GoGreen),
-                modifier = Modifier.fillMaxWidth()
+                shape = RoundedCornerShape(28.dp),
+                modifier = Modifier.fillMaxWidth().height(48.dp)
             ) {
                 if (running) {
                     CircularProgressIndicator(
@@ -327,7 +315,8 @@ fun FingerprintLabScreen(profile: Profile, onBack: () -> Unit) {
                     }
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = GoGreen),
-                modifier = Modifier.fillMaxWidth()
+                shape = RoundedCornerShape(28.dp),
+                modifier = Modifier.fillMaxWidth().height(48.dp)
             ) {
                 Text("Check on whoer.net")
             }
@@ -355,7 +344,7 @@ fun FingerprintLabScreen(profile: Profile, onBack: () -> Unit) {
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(12.dp))
-                            .background(Color(0xFFF8F9FA))
+                            .background(Color.White)
                             .padding(12.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
