@@ -980,10 +980,9 @@ private fun BrandTitle(modifier: Modifier = Modifier) {
 }
 
 /**
- * v2.8.24: premium header row. Sub-screens show a back arrow (in a
- * translucent dark circle) and the green infinity; the Profiles list
- * shows the infinity in a green circle plus bell + gear; Settings
- * shows the green infinity with no back arrow.
+ * Premium header row. Sub-screens show a back arrow (in a
+ * translucent dark circle); the logo is the white N in a green circle
+ * on every screen.
  */
 @Composable
 private fun PremiumHeader(
@@ -1047,7 +1046,7 @@ private fun PremiumBottomNav(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 10.dp),
+            .padding(horizontal = 20.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Row(
@@ -1083,7 +1082,7 @@ private fun PremiumBottomNav(
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Icon(Icons.Filled.Add, null, tint = Color.White, modifier = Modifier.size(20.dp))
-                Text("Add Profile", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Text("Add Profile", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
             }
         }
     }
@@ -1218,7 +1217,7 @@ private fun MenuRow(
         Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f)) {
             Text(title, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = GoTitle, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(subtitle, color = GoGreyText, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(subtitle, color = GoGreyText, fontSize = 12.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
         Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = GoGreyText)
     }
@@ -1722,7 +1721,7 @@ private fun AddEditFormScreen(
 
     Column(modifier = Modifier.fillMaxSize()) {
         WaveHeader {
-            PremiumHeader(showBack = true, onBack = onCancel)
+            PremiumHeader(showBack = true, onBack = onCancel, logoInCircle = true)
         }
         Column(
             modifier = Modifier
@@ -2064,7 +2063,7 @@ private fun AddProxyScreen(
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         WaveHeader {
-            PremiumHeader(showBack = true, onBack = onBack)
+            PremiumHeader(showBack = true, onBack = onBack, logoInCircle = true)
         }
         AddProxyBody(
             proxyStore = proxyStore,
@@ -2505,11 +2504,11 @@ private fun ProxyRow(
                 RoundedCornerShape(16.dp)
             )
             .clickable(onClick = onTap)
-            .padding(14.dp),
+            .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(flag, fontSize = 26.sp)
-        Spacer(Modifier.width(12.dp))
+        Spacer(Modifier.width(8.dp))
         Column(Modifier.weight(1f)) {
             Text(
                 "SOCKS5 ${entry.host}:${entry.port}",
@@ -2531,11 +2530,9 @@ private fun ProxyRow(
                 Spacer(Modifier.width(4.dp))
                 Text(ipLine, fontSize = 9.sp, color = GoGreyText, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
-        }
-        Column(
-            horizontalAlignment = Alignment.End,
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
+            // The status pill sits under the IP line so the host:port
+            // gets the row's full width instead of being cut off.
+            Spacer(Modifier.height(6.dp))
             Row(
                 modifier = Modifier
                     .clip(RoundedCornerShape(12.dp))
@@ -2565,7 +2562,8 @@ private fun ProxyRow(
                     softWrap = false
                 )
             }
-            Row(verticalAlignment = Alignment.CenterVertically) {
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
                     modifier = Modifier
                         .size(28.dp)
@@ -2585,7 +2583,7 @@ private fun ProxyRow(
                     }
                 }
                 Box {
-                    IconButton(onClick = { menuOpen = true }, modifier = Modifier.size(32.dp)) {
+                    IconButton(onClick = { menuOpen = true }, modifier = Modifier.size(28.dp)) {
                         Icon(Icons.Filled.MoreVert, contentDescription = "More", tint = GoTitle, modifier = Modifier.size(18.dp))
                     }
                     DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
@@ -2596,7 +2594,6 @@ private fun ProxyRow(
                     }
                 }
             }
-        }
     }
 }
 
@@ -2614,7 +2611,7 @@ private fun SettingsScreen(
     val scroll = rememberScrollState()
     Column(modifier = Modifier.fillMaxSize()) {
         WaveHeader {
-            PremiumHeader()
+            PremiumHeader(logoInCircle = true)
         }
         Column(
             modifier = Modifier
@@ -2749,7 +2746,7 @@ private fun SettingsRow(
         Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f)) {
             Text(title, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = GoTitle, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(subtitle, color = GoGreyText, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(subtitle, color = GoGreyText, fontSize = 12.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
         Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = GoGreyText)
     }
