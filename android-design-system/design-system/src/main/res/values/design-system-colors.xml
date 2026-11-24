@@ -378,11 +378,6 @@
     <color name="omnibar_card_fire_light">#3D3D3D</color>
     <color name="omnibar_card_fire_dark">#1C1C1C</color>
 
-    <!-- v2.8.40: NovaProfile dark green header (GoHeaderDark). Same value as
-         app/src/main/res/values/novaprofile_colors.xml — duplicated here
-         because the design-system layouts cannot reference app resources. -->
-    <color name="novaprofile_header_dark">#0A3D2E</color>
-
 </resources>
 
     <!-- Opacity Prefixes
