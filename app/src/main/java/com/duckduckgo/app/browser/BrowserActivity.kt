@@ -25,7 +25,6 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.Intent.EXTRA_TEXT
 import android.content.res.Configuration
-import android.graphics.Color
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -120,6 +119,7 @@ import com.duckduckgo.common.ui.DuckDuckGoActivity
 import com.duckduckgo.common.ui.tabs.SwipingTabsFeatureProvider
 import com.duckduckgo.common.ui.view.addBottomShadow
 import com.duckduckgo.common.ui.view.dialog.TextAlertDialogBuilder
+import com.duckduckgo.common.ui.view.getColorFromAttr
 import com.duckduckgo.common.ui.view.gone
 import com.duckduckgo.common.ui.view.isFullScreen
 import com.duckduckgo.common.ui.view.show
@@ -1028,10 +1028,12 @@ open class BrowserActivity : DuckDuckGoActivity() {
     }
 
     private fun configureEdgeToEdge() {
-        // v2.8.40: the browser toolbar is NovaProfile dark green in every theme,
-        // so the system bars always use the dark style (light icons) on dark green.
-        val toolbarColor = Color.parseColor("#0A3D2E")
-        val barStyle = SystemBarStyle.dark(toolbarColor)
+        val toolbarColor = getColorFromAttr(com.duckduckgo.mobile.android.R.attr.daxColorToolbar)
+        val barStyle = if (isDarkThemeEnabled()) {
+            SystemBarStyle.dark(toolbarColor)
+        } else {
+            SystemBarStyle.light(toolbarColor, toolbarColor)
+        }
         enableEdgeToEdge(statusBarStyle = barStyle, navigationBarStyle = barStyle)
         edgeToEdgeHandler.applyStatusBarAndHorizontalInsets(
             binding.root,
