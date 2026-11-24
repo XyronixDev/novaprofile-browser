@@ -22,15 +22,15 @@
     android:id="@+id/appBarLayout"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="@color/novaprofile_header_dark"
+    android:background="@android:color/transparent"
     android:outlineProvider="none">
 
     <androidx.appcompat.widget.Toolbar
         android:id="@+id/toolbar"
         android:layout_width="match_parent"
         android:layout_height="?attr/actionBarSize"
-        android:background="@color/novaprofile_header_dark"
-        android:theme="@style/NovaProfile.Widget.Toolbar"
+        android:background="?attr/daxColorToolbar"
+        android:theme="@style/TabSwitcher.Widget.Toolbar"
         app:buttonGravity="center_vertical"
         app:contentInsetStartWithNavigation="0dp"
         app:popupTheme="@style/Widget.DuckDuckGo.PopUpOverflowMenu"
