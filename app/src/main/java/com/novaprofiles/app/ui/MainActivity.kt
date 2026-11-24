@@ -44,7 +44,6 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.animateItemPlacement
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -1363,7 +1362,6 @@ private fun ProfilesScreen(
                             ) {
                                 items(shown, key = { it.id }) { p ->
                                     ProfileCard(
-                                        modifier = Modifier.animateItemPlacement(),
                                         profile = p,
                                         entry = proxyEntryFor(p, savedProxies),
                                         active = isProfileActive(p, savedProxies),
@@ -1410,7 +1408,6 @@ private fun ProfilesScreen(
 /** v2.8.24: one profile card, exactly as in the reference screenshot. */
 @Composable
 private fun ProfileCard(
-    modifier: Modifier = Modifier,
     profile: Profile,
     entry: ProxyEntry?,
     active: Boolean,
@@ -1439,7 +1436,7 @@ private fun ProfileCard(
     }
 
     Row(
-        modifier = modifier
+        modifier = Modifier
             .fillMaxWidth()
             .height(IntrinsicSize.Max)
             .clip(RoundedCornerShape(20.dp))
