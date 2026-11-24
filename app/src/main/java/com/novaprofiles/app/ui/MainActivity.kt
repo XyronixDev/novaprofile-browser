@@ -937,10 +937,10 @@ private fun AboutDialog(onDismiss: () -> Unit) {
                             .background(GoGreen),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("i", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                        Text("i", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                     }
                     Spacer(Modifier.width(12.dp))
-                    Text("About NovaProfile", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = GoTitle)
+                    Text("About NovaProfile", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = GoTitle)
                 }
                 Box(
                     modifier = Modifier
@@ -962,9 +962,9 @@ private fun AboutDialog(onDismiss: () -> Unit) {
                     Column {
                         Text(
                             "NovaProfile ${BuildConfig.VERSION_NAME} (Build ${BuildConfig.VERSION_CODE})",
-                            fontWeight = FontWeight.Bold, fontSize = 15.sp, color = GoTitle
+                            fontWeight = FontWeight.Bold, fontSize = 14.sp, color = GoTitle
                         )
-                        Text("Multi-profile anti-detect browser.", color = GoGreyText, fontSize = 13.sp)
+                        Text("Multi-profile anti-detect browser.", color = GoGreyText, fontSize = 12.sp)
                     }
                 }
                 AboutFeatureRow(
@@ -1004,8 +1004,8 @@ private fun AboutDialog(onDismiss: () -> Unit) {
                     Icon(Icons.Filled.Shield, null, tint = GoGreenDark, modifier = Modifier.size(28.dp))
                     Spacer(Modifier.width(12.dp))
                     Column {
-                        Text("Your Privacy. Our Priority.", fontWeight = FontWeight.Bold, color = GoGreenDark)
-                        Text("Browse securely and anonymously with NovaProfile.", color = GoGreyText, fontSize = 13.sp)
+                        Text("Your Privacy. Our Priority.", fontWeight = FontWeight.Bold, color = GoGreenDark, fontSize = 14.sp)
+                        Text("Browse securely and anonymously with NovaProfile.", color = GoGreyText, fontSize = 12.sp)
                     }
                 }
                 Button(
@@ -1014,7 +1014,7 @@ private fun AboutDialog(onDismiss: () -> Unit) {
                     shape = RoundedCornerShape(28.dp),
                     modifier = Modifier.fillMaxWidth().height(48.dp)
                 ) {
-                    Text("OK", fontWeight = FontWeight.Bold)
+                    Text("OK", fontWeight = FontWeight.Bold, fontSize = 15.sp)
                 }
             }
         }
@@ -1041,8 +1041,8 @@ private fun AboutFeatureRow(
         }
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
-            Text(title, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = GoTitle)
-            Text(desc, color = GoGreyText, fontSize = 13.sp)
+            Text(title, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = GoTitle)
+            Text(desc, color = GoGreyText, fontSize = 12.sp)
         }
     }
 }
