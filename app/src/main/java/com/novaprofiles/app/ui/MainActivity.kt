@@ -2185,7 +2185,7 @@ private fun AddProxyBody(
                 }
                 Spacer(Modifier.width(16.dp))
                 Column(Modifier.weight(1f)) {
-                    Text("Add Proxy", fontWeight = FontWeight.Bold, fontSize = 28.sp, color = GoTitle)
+                    Text("Add Proxy", fontWeight = FontWeight.Bold, fontSize = 23.sp, color = GoTitle)
                     Spacer(Modifier.height(4.dp))
                     Text(
                         buildAnnotatedString {
@@ -2225,7 +2225,7 @@ private fun AddProxyBody(
                     Text(
                         "Import Proxies from File",
                         fontWeight = FontWeight.Bold,
-                        fontSize = 17.sp,
+                        fontSize = 12.sp,
                         color = GoTitle,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -2380,7 +2380,7 @@ private fun AddProxyBody(
                 Text(
                     "Use no proxy (Direct)",
                     fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp,
+                    fontSize = 18.sp,
                     color = if (directSelected) GoGreen else GoTitle,
                     modifier = Modifier.weight(1f),
                     maxLines = 1,
@@ -2411,7 +2411,7 @@ private fun AddProxyBody(
                     Text(
                         "Saved Proxies (${savedProxies.size})",
                         fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp,
+                        fontSize = 19.sp,
                         color = GoTitle,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -2437,9 +2437,9 @@ private fun AddProxyBody(
                     shape = RoundedCornerShape(20.dp),
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
                 ) {
-                    Icon(Icons.Filled.Bolt, null, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Filled.Bolt, null, modifier = Modifier.size(15.dp))
                     Spacer(Modifier.width(4.dp))
-                    Text("Test All", fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
+                    Text("Test All", fontWeight = FontWeight.Bold, fontSize = 12.sp, maxLines = 1, softWrap = false)
                 }
             }
             // Saved proxy rows.
@@ -2502,7 +2502,7 @@ private fun ProxyRow(
             Text(
                 "SOCKS5 ${entry.host}:${entry.port}",
                 fontWeight = FontWeight.Bold,
-                fontSize = 15.sp,
+                fontSize = 13.sp,
                 color = GoTitle,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
@@ -2511,13 +2511,13 @@ private fun ProxyRow(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Filled.LocationOn, null, tint = GoGreyText, modifier = Modifier.size(14.dp))
                 Spacer(Modifier.width(4.dp))
-                Text(countryLabel, fontSize = 14.sp, color = GoGreyText, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(countryLabel, fontSize = 11.sp, color = GoGreyText, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             Spacer(Modifier.height(3.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Filled.Timer, null, tint = GoGreyText, modifier = Modifier.size(14.dp))
                 Spacer(Modifier.width(4.dp))
-                Text(ipLine, fontSize = 14.sp, color = GoGreyText, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(ipLine, fontSize = 10.sp, color = GoGreyText, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
         Column(
@@ -2564,12 +2564,12 @@ private fun ProxyRow(
                 ) {
                     if (testing) {
                         CircularProgressIndicator(
-                            modifier = Modifier.size(18.dp),
+                            modifier = Modifier.size(13.dp),
                             color = GoGreen,
                             strokeWidth = 2.dp
                         )
                     } else {
-                        Icon(Icons.Filled.PlayArrow, null, tint = GoGreen, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Filled.PlayArrow, null, tint = GoGreen, modifier = Modifier.size(13.dp))
                     }
                 }
                 Box {
