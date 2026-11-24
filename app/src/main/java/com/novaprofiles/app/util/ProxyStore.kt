@@ -376,7 +376,11 @@ class ProxyStore(context: Context) {
             val ip = conn.inputStream.bufferedReader().readText().trim()
             conn.disconnect()
             if (conn.responseCode != 200 || ip.isBlank() || !ip.contains(".")) {
-                return entry.copy(ok = false, lastMs = System.currentTimeMillis() - started)
+                return entry.copy(
+                    ok = false,
+                    lastMs = System.currentTimeMillis() - started,
+                    country = entry.country.ifBlank { resolveCountry(entry.host) }
+                )
             }
             // Country + timezone + coordinates lookup for that IP (also
             // through the proxy). The timezone is the v2.5 anti-detect
@@ -403,6 +407,7 @@ class ProxyStore(context: Context) {
                 }
             } catch (e: Exception) {
             }
+            if (country.isBlank()) country = resolveCountry(entry.host)
             entry.copy(
                 ok = true,
                 country = country,
@@ -413,7 +418,11 @@ class ProxyStore(context: Context) {
                 lastLon = lon
             )
         } catch (e: Exception) {
-            entry.copy(ok = false, lastMs = System.currentTimeMillis() - started)
+            entry.copy(
+                ok = false,
+                lastMs = System.currentTimeMillis() - started,
+                country = entry.country.ifBlank { resolveCountry(entry.host) }
+            )
         }
     }
 
@@ -458,6 +467,29 @@ class ProxyStore(context: Context) {
      * Returns null on any failure; the caller then launches with the
      * profile's stored values instead of blocking.
      */
+    /**
+     * Country of a proxy host looked up directly (no proxy). The
+     * through-proxy check is the authority for a working proxy, but
+     * a proxy whose test fails would otherwise keep no flag at all —
+     * the host IP itself still resolves to its real country.
+     */
+    suspend fun resolveCountry(host: String): String = withContext(Dispatchers.IO) {
+        try {
+            val c = URL("http://ip-api.com/json/$host?fields=status,country,countryCode")
+                .openConnection() as HttpURLConnection
+            c.connectTimeout = 5_000
+            c.readTimeout = 5_000
+            val body = c.inputStream.bufferedReader().readText()
+            c.disconnect()
+            val o = JSONObject(body)
+            if (o.optString("status") == "success") {
+                "${o.optString("countryCode")} \u2022 ${o.optString("country")}"
+            } else ""
+        } catch (e: Exception) {
+            ""
+        }
+    }
+
     data class Location(val ip: String, val timezone: String, val lat: Double, val lon: Double)
 
     suspend fun resolveLocation(entry: ProxyEntry): Location? =
