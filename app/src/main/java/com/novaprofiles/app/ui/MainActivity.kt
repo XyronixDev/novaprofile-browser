@@ -1089,7 +1089,7 @@ private fun PremiumBottomNav(
         Spacer(Modifier.width(12.dp))
         Box(
             modifier = Modifier
-                .size(76.dp)
+                .size(68.dp)
                 .clip(CircleShape)
                 .background(GoGreen)
                 .clickable(onClick = onAddProfile),
@@ -1412,7 +1412,7 @@ private fun ProfilesScreen(
                                 .clip(RoundedCornerShape(16.dp))
                                 .background(GoMintBg)
                                 .clickable(onClick = onShowAbout)
-                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                                .padding(horizontal = 16.dp, vertical = 7.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Box(
@@ -1986,7 +1986,7 @@ private fun AddEditFormScreen(
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                         modifier = Modifier
                             .weight(1f)
-                            .height(56.dp)
+                            .height(48.dp)
                     ) {
                         Icon(Icons.Filled.Save, null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
@@ -2009,7 +2009,7 @@ private fun AddEditFormScreen(
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                         modifier = Modifier
                             .weight(1f)
-                            .height(56.dp)
+                            .height(48.dp)
                     ) {
                         Text("Cancel", fontWeight = FontWeight.Bold, fontSize = 15.sp, maxLines = 1, softWrap = false)
                     }
@@ -2024,7 +2024,7 @@ private fun AddEditFormScreen(
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                         modifier = Modifier
                             .weight(2f)
-                            .height(56.dp)
+                            .height(48.dp)
                     ) {
                         Icon(Icons.Filled.Close, null, modifier = Modifier.size(20.dp))
                         Spacer(Modifier.width(6.dp))
@@ -2038,7 +2038,7 @@ private fun AddEditFormScreen(
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                         modifier = Modifier
                             .weight(3f)
-                            .height(56.dp)
+                            .height(48.dp)
                     ) {
                         Icon(Icons.Filled.Check, null, modifier = Modifier.size(20.dp))
                         Spacer(Modifier.width(6.dp))
