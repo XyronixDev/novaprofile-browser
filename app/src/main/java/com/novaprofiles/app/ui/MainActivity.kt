@@ -9,6 +9,7 @@ package com.novaprofiles.app.ui
 
 import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.BackHandler
@@ -148,6 +149,9 @@ import com.novaprofiles.app.util.DirectInfo
 import com.novaprofiles.app.util.NovaProfileSession
 import com.novaprofiles.app.util.ProxyHelper
 import kotlin.math.abs
+
+/** Max profiles — keeps the app light and smooth. */
+private const val MAX_PROFILES = 25
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -397,6 +401,7 @@ private enum class ProfileFilter { ALL, ACTIVE, OFFLINE }
 @Composable
 fun MainScreen(vm: ProfileViewModel, autoRunProfileId: Long? = null, autoRunQuery: String? = null) {
     val profiles by vm.profiles.collectAsState()
+    val addEnabled = profiles.size < MAX_PROFILES
     val query by vm.query.collectAsState()
     val proxyCheck by vm.proxyCheckResult.collectAsState()
     val importResult by vm.importResult.collectAsState()
@@ -470,6 +475,10 @@ fun MainScreen(vm: ProfileViewModel, autoRunProfileId: Long? = null, autoRunQuer
     }
 
     fun openAddForm() {
+        if (profiles.size >= MAX_PROFILES) {
+            Toast.makeText(ctx, "25 profiles ki limit hai — naya profile add karne ke liye pehle ek profile delete karo.", Toast.LENGTH_LONG).show()
+            return
+        }
         val max = profiles.mapNotNull {
             Regex("""^Profile (\d+)$""").find(it.name)?.groupValues?.getOrNull(1)?.toIntOrNull()
         }.maxOrNull() ?: 0
@@ -495,6 +504,10 @@ fun MainScreen(vm: ProfileViewModel, autoRunProfileId: Long? = null, autoRunQuer
 
     fun saveDraft() {
         val d = draft ?: return
+        if (editingId == null && profiles.size >= MAX_PROFILES) {
+            Toast.makeText(ctx, "25 profiles ki limit hai — naya profile add karne ke liye pehle ek profile delete karo.", Toast.LENGTH_LONG).show()
+            return
+        }
         if (editingId != null) vm.update(d) else vm.create(d)
         draft = null
         editingId = null
@@ -731,7 +744,17 @@ fun MainScreen(vm: ProfileViewModel, autoRunProfileId: Long? = null, autoRunQuer
                 onStop = { stopProfile(it.id) },
                 onEdit = { openEditForm(it) },
                 onDelete = { pendingDelete = it },
-                onDuplicate = { vm.duplicate(it) },
+                onDuplicate = {
+                    if (profiles.size >= MAX_PROFILES) {
+                        Toast.makeText(
+                            ctx,
+                            "25 profiles ki limit hai — naya profile add karne ke liye pehle ek profile delete karo.",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    } else {
+                        vm.duplicate(it)
+                    }
+                },
                 onCheckFingerprint = { labProfile = it },
                 onOpenSettings = { route = HomeRoute.SETTINGS },
                 proxyStore = proxyStore,
@@ -763,7 +786,8 @@ fun MainScreen(vm: ProfileViewModel, autoRunProfileId: Long? = null, autoRunQuer
                 },
                 onOpenProfiles = { route = HomeRoute.PROFILES },
                 onOpenSettings = { route = HomeRoute.SETTINGS },
-                onAddProfile = { openAddForm() }
+                onAddProfile = { openAddForm() },
+                addEnabled = addEnabled
             )
             HomeRoute.SETTINGS -> SettingsScreen(
                 onExport = { exportLauncher.launch("novaprofile-profiles.zip") },
@@ -772,7 +796,8 @@ fun MainScreen(vm: ProfileViewModel, autoRunProfileId: Long? = null, autoRunQuer
                 notice = importResult ?: exportResult,
                 onOpenProfiles = { route = HomeRoute.PROFILES },
                 onOpenSettings = { },
-                onAddProfile = { openAddForm() }
+                onAddProfile = { openAddForm() },
+                addEnabled = addEnabled
             )
             HomeRoute.FORM -> {
                 val d = draft
@@ -1004,7 +1029,8 @@ private fun PremiumBottomNav(
     selected: HomeRoute?,
     onProfiles: () -> Unit,
     onSettings: () -> Unit,
-    onAddProfile: () -> Unit
+    onAddProfile: () -> Unit,
+    addEnabled: Boolean = true
 ) {
     Row(
         modifier = Modifier
@@ -1041,7 +1067,7 @@ private fun PremiumBottomNav(
                 .width(104.dp)
                 .height(64.dp)
                 .clip(RoundedCornerShape(32.dp))
-                .background(GoGreen)
+                .background(if (addEnabled) GoGreen else GoGreyText)
                 .clickable(onClick = onAddProfile),
             contentAlignment = Alignment.Center
         ) {
@@ -1375,7 +1401,8 @@ private fun ProfilesScreen(
             selected = HomeRoute.PROFILES,
             onProfiles = { },
             onSettings = onOpenSettings,
-            onAddProfile = onAddProfile
+            onAddProfile = onAddProfile,
+            addEnabled = profiles.size < MAX_PROFILES
         )
     }
 }
@@ -1987,7 +2014,8 @@ private fun AddProxyScreen(
     onDirectForDraft: () -> Unit,
     onOpenProfiles: () -> Unit,
     onOpenSettings: () -> Unit,
-    onAddProfile: () -> Unit
+    onAddProfile: () -> Unit,
+    addEnabled: Boolean = true
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         WaveHeader {
@@ -2006,7 +2034,8 @@ private fun AddProxyScreen(
             selected = null,
             onProfiles = onOpenProfiles,
             onSettings = onOpenSettings,
-            onAddProfile = onAddProfile
+            onAddProfile = onAddProfile,
+            addEnabled = addEnabled
         )
     }
 }
@@ -2531,7 +2560,8 @@ private fun SettingsScreen(
     notice: String?,
     onOpenProfiles: () -> Unit,
     onOpenSettings: () -> Unit,
-    onAddProfile: () -> Unit
+    onAddProfile: () -> Unit,
+    addEnabled: Boolean = true
 ) {
     val scroll = rememberScrollState()
     Column(modifier = Modifier.fillMaxSize()) {
@@ -2637,7 +2667,8 @@ private fun SettingsScreen(
             selected = HomeRoute.SETTINGS,
             onProfiles = onOpenProfiles,
             onSettings = onOpenSettings,
-            onAddProfile = onAddProfile
+            onAddProfile = onAddProfile,
+            addEnabled = addEnabled
         )
     }
 }
