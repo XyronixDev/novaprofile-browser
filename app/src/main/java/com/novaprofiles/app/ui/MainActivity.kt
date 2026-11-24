@@ -1872,214 +1872,11 @@ private fun AddEditFormScreen(
     // offset left the previous content showing through.
     LaunchedEffect(extSection) { scroll.scrollTo(0) }
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    Column(modifier = Modifier.fillMaxSize().background(GoContentBg)) {
         WaveHeader {
             PremiumHeader(logoInCircle = true)
         }
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .verticalScroll(scroll)
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Spacer(Modifier.height(2.dp))
-            when {
-                proxyPickerOpen -> ProxyPickerView(
-                    proxyStore = proxyStore,
-                    scope = scope,
-                    connectingCountry = connectingCountry,
-                    onConnectingCountry = { connectingCountry = it },
-                    countryStatus = countryStatus,
-                    onCountryStatus = { countryStatus = it },
-                    onPicked = { working, cs ->
-                        proxyStore.add(working)
-                        onDraft(
-                            draft.copy(
-                                proxyMode = working.mode,
-                                proxyHost = working.host,
-                                proxyPort = working.port,
-                                proxyUser = "",
-                                proxyPass = "",
-                                proxyCountry = cs.code,
-                                timezone = if (draft.timezoneMode == "IP") working.lastTimezone.ifBlank { cs.timezone } else draft.timezone,
-                                language = if (draft.languagesMode == "IP") cs.language else draft.language,
-                                latitude = if (draft.geoMode == "IP" && working.lastLat != 0.0) working.lastLat else draft.latitude,
-                                longitude = if (draft.geoMode == "IP" && working.lastLon != 0.0) working.lastLon else draft.longitude
-                            )
-                        )
-                        countryStatus =
-                            "${cs.label} connected • ${working.lastIp} • " +
-                                "${working.lastMs} ms — " +
-                                "timezone + language auto-matched. " +
-                                "Save the profile to apply."
-                        proxyPickerOpen = false
-                    },
-                    onBack = { connectingCountry = null; proxyPickerOpen = false }
-                )
-                extSection != null -> ExtendedSectionView(
-                    section = extSection!!,
-                    draft = draft,
-                    onDraft = onDraft,
-                    onBack = { extSection = null },
-                    onOpenProxyPicker = { extSection = null; proxyPickerOpen = true },
-                    onCheckProxy = onCheckProxy,
-                    onClearNotice = onClearNotice,
-                    proxyCheckResult = proxyCheckResult
-                )
-                else -> {
-                    // Avatar + title.
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(modifier = Modifier.size(80.dp)) {
-                            Box(
-                                modifier = Modifier
-                                    .size(80.dp)
-                                    .clip(CircleShape)
-                                    .background(GoMintBg),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    Icons.Outlined.Person,
-                                    null,
-                                    tint = GoGreenDark,
-                                    modifier = Modifier.size(44.dp)
-                                )
-                            }
-                            Box(
-                                modifier = Modifier
-                                    .size(20.dp)
-                                    .clip(CircleShape)
-                                    .background(GoGreen)
-                                    .border(3.dp, Color.White, CircleShape)
-                                    .align(Alignment.BottomEnd),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    if (editing) Icons.Filled.Edit else Icons.Filled.Add,
-                                    null,
-                                    tint = Color.White,
-                                    modifier = Modifier.size(11.dp)
-                                )
-                            }
-                        }
-                        Spacer(Modifier.width(16.dp))
-                        Column(Modifier.weight(1f)) {
-                            Text(
-                                if (editing) "Edit Profile" else "Add Profile",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 20.sp,
-                                color = GoTitle
-                            )
-                            Spacer(Modifier.height(4.dp))
-                            Text(
-                                if (editing) "Update your profile settings and customize your browser environment."
-                                else "Create a new profile with unique fingerprint and proxy settings.",
-                                color = GoGreyText,
-                                fontSize = 12.sp
-                            )
-                        }
-                    }
-                    // Profile Name card.
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(Color.White)
-                            .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Outlined.Person, null, tint = GoGreen, modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text("Profile Name", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = GoTitle)
-                        }
-                        OutlinedTextField(
-                            value = draft.name,
-                            onValueChange = { nameError = false; onDraft(draft.copy(name = it.take(50))) },
-                            placeholder = { Text("Enter profile name...", color = GoGreyText, fontSize = 12.sp) },
-                            trailingIcon = {
-                                Text("${draft.name.length}/50", color = GoGreyText, fontSize = 10.sp)
-                            },
-                            singleLine = true,
-                            isError = nameError,
-                            modifier = Modifier.fillMaxWidth().focusRequester(nameFocus),
-                            shape = RoundedCornerShape(12.dp),
-                            colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = Color.White,
-                                unfocusedContainerColor = Color.White,
-                                focusedBorderColor = GoGreen,
-                                unfocusedBorderColor = GoDivider,
-                                errorBorderColor = Color(0xFFD93025),
-                                errorContainerColor = Color.White
-                            )
-                        )
-                    }
-                    // Proxy.
-                    SectionHeader(
-                        icon = { Icon(Icons.Filled.Layers, null, tint = GoGreen, modifier = Modifier.size(18.dp)) },
-                        label = "Proxy"
-                    )
-                    MenuRow(
-                        icon = {
-                            Icon(
-                                if (draft.proxyMode == "NONE") Icons.Filled.Link else Icons.Filled.Storage,
-                                null,
-                                tint = GoGreen,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        },
-                        title = if (draft.proxyMode == "NONE") "Connect Proxy"
-                        else "${draft.proxyMode} ${draft.proxyHost}:${draft.proxyPort}",
-                        subtitle = if (draft.proxyMode == "NONE") "Tap to select a proxy"
-                        else "Timezone: ${draft.timezone} • ${draft.language}",
-                        onClick = onOpenProxyPicker
-                    )
-                    countryStatus?.let { Text(it, color = GoGreyText, fontSize = 13.sp) }
-                    // Extended settings.
-                    SectionHeader(
-                        icon = { Icon(Icons.Filled.Settings, null, tint = GoGreen, modifier = Modifier.size(18.dp)) },
-                        label = "Extended Settings"
-                    )
-                    MenuRow(
-                        icon = { Icon(Icons.Filled.DesktopWindows, null, tint = GoGreen, modifier = Modifier.size(24.dp)) },
-                        title = "Profile Overview",
-                        // v2.8.25: the reference text differs per screen —
-                        // Add says "Set profile details…", Edit says
-                        // "View and manage profile details".
-                        subtitle = if (editing) "View and manage profile details"
-                        else "Set profile details and advanced options",
-                        onClick = { extSection = "overview" }
-                    )
-                    MenuRow(
-                        icon = { Icon(Icons.Filled.Language, null, tint = GoGreen, modifier = Modifier.size(24.dp)) },
-                        title = "Browser",
-                        subtitle = "Configure browser settings",
-                        onClick = { extSection = "browser" }
-                    )
-                    MenuRow(
-                        icon = { Icon(Icons.Filled.Storage, null, tint = GoGreen, modifier = Modifier.size(24.dp)) },
-                        title = "Storage",
-                        subtitle = "Manage profile storage",
-                        onClick = { extSection = "storage" }
-                    )
-                    MenuRow(
-                        icon = { Icon(Icons.Filled.Memory, null, tint = GoGreen, modifier = Modifier.size(24.dp)) },
-                        title = "Hardware",
-                        subtitle = "Customize hardware fingerprint",
-                        onClick = { extSection = "hardware" }
-                    )
-                    MenuRow(
-                        icon = { Icon(Icons.Filled.Fingerprint, null, tint = GoGreen, modifier = Modifier.size(24.dp)) },
-                        title = "Check fingerprint",
-                        subtitle = "Verify your profile fingerprint",
-                        onClick = { onCheckFingerprint(draft) }
-                    )
-                    error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                    Spacer(Modifier.height(8.dp))
-                }
-            }
-        }
-        // Bottom buttons (main form view only).
+        // v2.8.40: the action bar sits at the TOP of the form now.
         if (!proxyPickerOpen && extSection == null) {
             // v2.8.25: the reference bottom rows differ per screen —
             // Add: Cancel (mint, left) + Add Profile (green, right);
@@ -2185,6 +1982,221 @@ private fun AddEditFormScreen(
                             maxLines = 1,
                             softWrap = false
                         )
+                    }
+                }
+            }
+        }
+        // v2.8.40: the sub-screen is its own full-screen opaque layer
+        // with its own scroll state — it never shares the form's
+        // scrollable column, so no earlier content can show through.
+        if (extSection != null) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .background(GoContentBg)
+            ) {
+                ExtendedSectionView(
+                    section = extSection!!,
+                    draft = draft,
+                    onDraft = onDraft,
+                    onBack = { extSection = null },
+                    onOpenProxyPicker = { extSection = null; proxyPickerOpen = true },
+                    onCheckProxy = onCheckProxy,
+                    onClearNotice = onClearNotice,
+                    proxyCheckResult = proxyCheckResult
+                )
+            }
+        } else {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .verticalScroll(scroll)
+                    .padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Spacer(Modifier.height(2.dp))
+                when {
+                    proxyPickerOpen -> ProxyPickerView(
+                        proxyStore = proxyStore,
+                        scope = scope,
+                        connectingCountry = connectingCountry,
+                        onConnectingCountry = { connectingCountry = it },
+                        countryStatus = countryStatus,
+                        onCountryStatus = { countryStatus = it },
+                        onPicked = { working, cs ->
+                            proxyStore.add(working)
+                            onDraft(
+                                draft.copy(
+                                    proxyMode = working.mode,
+                                    proxyHost = working.host,
+                                    proxyPort = working.port,
+                                    proxyUser = "",
+                                    proxyPass = "",
+                                    proxyCountry = cs.code,
+                                    timezone = if (draft.timezoneMode == "IP") working.lastTimezone.ifBlank { cs.timezone } else draft.timezone,
+                                    language = if (draft.languagesMode == "IP") cs.language else draft.language,
+                                    latitude = if (draft.geoMode == "IP" && working.lastLat != 0.0) working.lastLat else draft.latitude,
+                                    longitude = if (draft.geoMode == "IP" && working.lastLon != 0.0) working.lastLon else draft.longitude
+                                )
+                            )
+                            countryStatus =
+                                "${cs.label} connected • ${working.lastIp} • " +
+                                    "${working.lastMs} ms — " +
+                                    "timezone + language auto-matched. " +
+                                    "Save the profile to apply."
+                            proxyPickerOpen = false
+                        },
+                        onBack = { connectingCountry = null; proxyPickerOpen = false }
+                    )
+                    else -> {
+                        // Avatar + title.
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(modifier = Modifier.size(80.dp)) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(80.dp)
+                                        .clip(CircleShape)
+                                        .background(GoMintBg),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        Icons.Outlined.Person,
+                                        null,
+                                        tint = GoGreenDark,
+                                        modifier = Modifier.size(44.dp)
+                                    )
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .size(20.dp)
+                                        .clip(CircleShape)
+                                        .background(GoGreen)
+                                        .border(3.dp, Color.White, CircleShape)
+                                        .align(Alignment.BottomEnd),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        if (editing) Icons.Filled.Edit else Icons.Filled.Add,
+                                        null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(11.dp)
+                                    )
+                                }
+                            }
+                            Spacer(Modifier.width(16.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    if (editing) "Edit Profile" else "Add Profile",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 20.sp,
+                                    color = GoTitle
+                                )
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    if (editing) "Update your profile settings and customize your browser environment."
+                                    else "Create a new profile with unique fingerprint and proxy settings.",
+                                    color = GoGreyText,
+                                    fontSize = 12.sp
+                                )
+                            }
+                        }
+                        // Profile Name card.
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(Color.White)
+                                .padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Outlined.Person, null, tint = GoGreen, modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.width(8.dp))
+                                Text("Profile Name", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = GoTitle)
+                            }
+                            OutlinedTextField(
+                                value = draft.name,
+                                onValueChange = { nameError = false; onDraft(draft.copy(name = it.take(50))) },
+                                placeholder = { Text("Enter profile name...", color = GoGreyText, fontSize = 12.sp) },
+                                trailingIcon = {
+                                    Text("${draft.name.length}/50", color = GoGreyText, fontSize = 10.sp)
+                                },
+                                singleLine = true,
+                                isError = nameError,
+                                modifier = Modifier.fillMaxWidth().focusRequester(nameFocus),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                                    focusedContainerColor = Color.White,
+                                    unfocusedContainerColor = Color.White,
+                                    focusedBorderColor = GoGreen,
+                                    unfocusedBorderColor = GoDivider,
+                                    errorBorderColor = Color(0xFFD93025),
+                                    errorContainerColor = Color.White
+                                )
+                            )
+                        }
+                        // Proxy.
+                        SectionHeader(
+                            icon = { Icon(Icons.Filled.Layers, null, tint = GoGreen, modifier = Modifier.size(18.dp)) },
+                            label = "Proxy"
+                        )
+                        MenuRow(
+                            icon = {
+                                Icon(
+                                    if (draft.proxyMode == "NONE") Icons.Filled.Link else Icons.Filled.Storage,
+                                    null,
+                                    tint = GoGreen,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            },
+                            title = if (draft.proxyMode == "NONE") "Connect Proxy"
+                            else "${draft.proxyMode} ${draft.proxyHost}:${draft.proxyPort}",
+                            subtitle = if (draft.proxyMode == "NONE") "Tap to select a proxy"
+                            else "Timezone: ${draft.timezone} • ${draft.language}",
+                            onClick = onOpenProxyPicker
+                        )
+                        countryStatus?.let { Text(it, color = GoGreyText, fontSize = 13.sp) }
+                        // Extended settings.
+                        SectionHeader(
+                            icon = { Icon(Icons.Filled.Settings, null, tint = GoGreen, modifier = Modifier.size(18.dp)) },
+                            label = "Extended Settings"
+                        )
+                        MenuRow(
+                            icon = { Icon(Icons.Filled.DesktopWindows, null, tint = GoGreen, modifier = Modifier.size(24.dp)) },
+                            title = "Profile Overview",
+                            // v2.8.25: the reference text differs per screen —
+                            // Add says "Set profile details…", Edit says
+                            // "View and manage profile details".
+                            subtitle = if (editing) "View and manage profile details"
+                            else "Set profile details and advanced options",
+                            onClick = { extSection = "overview" }
+                        )
+                        MenuRow(
+                            icon = { Icon(Icons.Filled.Language, null, tint = GoGreen, modifier = Modifier.size(24.dp)) },
+                            title = "Browser",
+                            subtitle = "Configure browser settings",
+                            onClick = { extSection = "browser" }
+                        )
+                        MenuRow(
+                            icon = { Icon(Icons.Filled.Storage, null, tint = GoGreen, modifier = Modifier.size(24.dp)) },
+                            title = "Storage",
+                            subtitle = "Manage profile storage",
+                            onClick = { extSection = "storage" }
+                        )
+                        MenuRow(
+                            icon = { Icon(Icons.Filled.Memory, null, tint = GoGreen, modifier = Modifier.size(24.dp)) },
+                            title = "Hardware",
+                            subtitle = "Customize hardware fingerprint",
+                            onClick = { extSection = "hardware" }
+                        )
+                        MenuRow(
+                            icon = { Icon(Icons.Filled.Fingerprint, null, tint = GoGreen, modifier = Modifier.size(24.dp)) },
+                            title = "Check fingerprint",
+                            subtitle = "Verify your profile fingerprint",
+                            onClick = { onCheckFingerprint(draft) }
+                        )
+                        error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                        Spacer(Modifier.height(8.dp))
                     }
                 }
             }
@@ -2937,7 +2949,7 @@ private fun ChoiceChips(
             FilterChip(
                 selected = selected == value,
                 onClick = { onSelect(value) },
-                label = { Text(label) }
+                label = { Text(label, fontSize = 13.sp) }
             )
         }
     }
@@ -2973,7 +2985,8 @@ fun DropDownField(
             value = selected,
             onValueChange = {},
             readOnly = true,
-            label = { Text(label) },
+            textStyle = LocalTextStyle.current.copy(fontSize = 14.sp),
+            label = { Text(label, fontSize = 12.sp) },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             modifier = Modifier
                 .menuAnchor()
@@ -2985,7 +2998,7 @@ fun DropDownField(
         ) {
             for (o in options) {
                 androidx.compose.material3.DropdownMenuItem(
-                    text = { Text(o) },
+                    text = { Text(o, fontSize = 14.sp) },
                     onClick = { onSelect(o); expanded = false }
                 )
             }
@@ -3144,11 +3157,25 @@ private fun ExtendedSectionView(
     onClearNotice: () -> Unit,
     proxyCheckResult: String?
 ) {
-    // v2.8.39: solid background so no earlier content shows through.
-    Column(
-        modifier = Modifier.background(GoContentBg),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+    // v2.8.40: the sub-screen fills its opaque overlay layer and scrolls
+    // on its own state — it never shares the form's scrollable column.
+    // Text is set to the screenshot's scale (14sp base) — the M3
+    // bodyLarge default (16sp) rendered far too big.
+    val subScroll = rememberScrollState()
+    CompositionLocalProvider(
+        LocalTextStyle provides LocalTextStyle.current.copy(
+            fontSize = 14.sp,
+            lineHeight = 1.2.em
+        )
     ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(GoContentBg)
+                .verticalScroll(subScroll)
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) {
                 Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
@@ -3161,7 +3188,7 @@ private fun ExtendedSectionView(
                     else -> "Hardware"
                 },
                 fontWeight = FontWeight.Bold,
-                fontSize = 20.sp
+                fontSize = 18.sp
             )
         }
         when (section) {
@@ -3176,6 +3203,7 @@ private fun ExtendedSectionView(
             modifier = Modifier.fillMaxWidth()
         ) { Text("Save") }
         Spacer(Modifier.height(24.dp))
+        }
     }
 }
 
@@ -3230,21 +3258,23 @@ private fun OverviewSection(draft: Profile, onDraft: (Profile) -> Unit) {
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        Text("Fingerprint data", fontWeight = FontWeight.Bold)
-        Text("Resolution  ${draft.screenWidth}x${draft.screenHeight}", color = GoGreyText)
-        Text("OS  ${draft.os}", color = GoGreyText)
-        Text("Languages  ${draft.language}", color = GoGreyText)
-        Text("Fonts  ${draft.fontsList.split(",").size} fonts", color = GoGreyText)
+        Text("Fingerprint data", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+        Text("Resolution  ${draft.screenWidth}x${draft.screenHeight}", color = GoGreyText, fontSize = 12.sp)
+        Text("OS  ${draft.os}", color = GoGreyText, fontSize = 12.sp)
+        Text("Languages  ${draft.language}", color = GoGreyText, fontSize = 12.sp)
+        Text("Fonts  ${draft.fontsList.split(",").size} fonts", color = GoGreyText, fontSize = 12.sp)
         Text(
             "User-agent  ${if (draft.userAgent.isNotBlank()) draft.userAgent else Profile.defaultUserAgent(draft.userAgentPreset)}",
-            color = GoGreyText
+            color = GoGreyText,
+            fontSize = 12.sp
         )
         val canvasSpoofed = draft.canvasMode == "noise" || draft.canvasMode == "block"
         val spoofed = canvasSpoofed || draft.webglMode == "MASKED" || draft.audioMode == "MASKED"
         Text(
             if (spoofed) "Fingerprint: Unique ✓" else "Fingerprint: Real (not spoofed)",
             color = if (spoofed) GoGreenDark else GoGreyText,
-            fontWeight = FontWeight.Bold
+            fontWeight = FontWeight.Bold,
+            fontSize = 12.sp
         )
     }
 }
@@ -3277,8 +3307,8 @@ private fun SettingCard(
             }
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
-                Text(title, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = GoTitle)
-                Text(subtitle, color = GoGreyText, fontSize = 13.sp)
+                Text(title, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = GoTitle)
+                Text(subtitle, color = GoGreyText, fontSize = 12.sp)
             }
         }
         content()
@@ -3306,8 +3336,8 @@ private fun IconToggleRow(
         }
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
-            Text(title, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = GoTitle)
-            Text(subtitle, color = GoGreyText, fontSize = 13.sp)
+            Text(title, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = GoTitle)
+            Text(subtitle, color = GoGreyText, fontSize = 12.sp)
         }
         Switch(
             checked = checked,
@@ -3347,8 +3377,8 @@ private fun BrowserSection(draft: Profile, onDraft: (Profile) -> Unit) {
             Icon(Icons.Filled.Info, null, tint = GoGreenDark, modifier = Modifier.size(20.dp))
             Spacer(Modifier.width(8.dp))
             Column(Modifier.weight(1f)) {
-                Text("User-Agent:", fontWeight = FontWeight.Bold, color = GoGreenDark, fontSize = 13.sp)
-                Text(ua, color = GoTitle, fontSize = 13.sp)
+                Text("User-Agent:", fontWeight = FontWeight.Bold, color = GoGreenDark, fontSize = 12.sp)
+                Text(ua, color = GoTitle, fontSize = 12.sp)
             }
             IconButton(onClick = { clipboard.setText(AnnotatedString(ua)) }) {
                 Icon(Icons.Filled.ContentCopy, "Copy user-agent", tint = GoGreenDark)
@@ -3384,10 +3414,10 @@ private fun BrowserSection(draft: Profile, onDraft: (Profile) -> Unit) {
                     .background(GoGreen)
                     .padding(horizontal = 16.dp, vertical = 8.dp)
             ) {
-                Text("✓ IP Based", color = Color.White, fontWeight = FontWeight.Bold)
+                Text("✓ IP Based", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
             }
         }
-        Text("Current: ${draft.language} (from the proxy country)", color = GoGreyText)
+        Text("Current: ${draft.language} (from the proxy country)", color = GoGreyText, fontSize = 12.sp)
     }
     SettingCard(
         icon = Icons.Filled.TextFields,
@@ -3399,7 +3429,7 @@ private fun BrowserSection(draft: Profile, onDraft: (Profile) -> Unit) {
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text("Masked Fonts", fontWeight = FontWeight.Bold, color = GoTitle)
-                Text("Masking hides unusual fonts that could fingerprint the profile.", color = GoGreyText, fontSize = 13.sp)
+                Text("Masking hides unusual fonts that could fingerprint the profile.", color = GoGreyText, fontSize = 12.sp)
             }
             Switch(
                 checked = draft.fontsMasking,
@@ -3428,7 +3458,7 @@ private fun BrowserSection(draft: Profile, onDraft: (Profile) -> Unit) {
                     Spacer(Modifier.width(8.dp))
                     Text("Available Fonts", fontWeight = FontWeight.Bold, color = GoTitle)
                     Spacer(Modifier.weight(1f))
-                    Text("${selected.size} of ${Profile.FONT_OPTIONS.size} selected", color = GoGreenDark, fontSize = 13.sp)
+                    Text("${selected.size} of ${Profile.FONT_OPTIONS.size} selected", color = GoGreenDark, fontSize = 12.sp)
                 }
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -3449,7 +3479,7 @@ private fun BrowserSection(draft: Profile, onDraft: (Profile) -> Unit) {
                                 .padding(horizontal = 8.dp, vertical = 6.dp)
                         ) {
                             Checkbox(checked = selected.contains(font), onCheckedChange = null)
-                            Text(font, fontSize = 13.sp)
+                            Text(font, fontSize = 12.sp)
                         }
                     }
                 }
@@ -3509,12 +3539,12 @@ private fun StorageSection(draft: Profile, onDraft: (Profile) -> Unit) {
         )
         Spacer(Modifier.width(12.dp))
         Column {
-            Text("Important Note:", fontWeight = FontWeight.Bold, color = GoGreenDark)
+            Text("Important Note:", fontWeight = FontWeight.Bold, color = GoGreenDark, fontSize = 14.sp)
             Text(
                 "Lock session, Google services, passwords, plugins and extensions " +
                     "are not available in the system WebView — they are not shown here.",
                 color = GoTitle,
-                fontSize = 13.sp
+                fontSize = 12.sp
             )
         }
     }
