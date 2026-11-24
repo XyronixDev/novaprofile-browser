@@ -391,6 +391,7 @@ fun FingerprintLabScreen(profile: Profile, onBack: () -> Unit) {
             // Hidden lab WebView (1dp) — runs the checks, never shown.
             AndroidView(
                 factory = { ctx ->
+                    NovaProfileSession.setSuffixEarly(ctx, profile.id)
                     WebView(ctx).apply {
                         settings.javaScriptEnabled = true
                         settings.domStorageEnabled = true
