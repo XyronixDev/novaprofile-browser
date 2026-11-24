@@ -318,7 +318,7 @@ fun FingerprintLabScreen(
                 )
                 Spacer(Modifier.width(12.dp))
                 Column {
-                    Text("Check Fingerprint", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = GoTitle)
+                    Text("Check Fingerprint", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = GoTitle)
                     Text(
                         "What a website would see for ${profile.name}, checked live.",
                         color = GoGreyText,
@@ -391,11 +391,11 @@ fun FingerprintLabScreen(
                     Text(
                         "Spoof score: $it%",
                         fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp,
+                        fontSize = 18.sp,
                         color = if (it >= 70) GoGreenDark else Color(0xFFD93025)
                     )
                     Spacer(Modifier.size(8.dp))
-                    Text("$goodCount of ${scored.size} checks spoofed", color = GoGreyText, fontSize = 12.sp)
+                    Text("$goodCount of ${scored.size} checks spoofed", color = GoGreyText)
                 }
                 Spacer(Modifier.height(8.dp))
             }
@@ -429,7 +429,7 @@ fun FingerprintLabScreen(
                         }
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
-                            Text(row.label, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Text(row.label, fontWeight = FontWeight.Bold)
                             Text(
                                 row.detected,
                                 style = MaterialTheme.typography.bodySmall,
