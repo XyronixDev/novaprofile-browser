@@ -239,7 +239,8 @@ class BrowserNavigationBarViewModel @Inject constructor(
         val newTabButtonVisible: Boolean = true,
         val autofillButtonVisible: Boolean = false,
         val bookmarksButtonVisible: Boolean = true,
-        val fireButtonVisible: Boolean = true,
+        // NovaProfile has no fire button; the slot stays hidden.
+        val fireButtonVisible: Boolean = false,
         val fireButtonHighlighted: Boolean = false,
         val tabsButtonVisible: Boolean = true,
         val tabsCount: Int = 0,
