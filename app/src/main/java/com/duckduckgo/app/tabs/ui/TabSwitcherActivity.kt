@@ -301,10 +301,11 @@ class TabSwitcherActivity :
 
         if (switchToRequestedModeIfNeeded(savedInstanceState)) return
 
-        // v2.8.40: the tab switcher toolbars are NovaProfile dark green in every
-        // theme, so the system bars always use the dark style (light icons) on
-        // dark green — the light style would put dark icons on dark green.
-        val barStyle = SystemBarStyle.dark(Color.parseColor("#0A3D2E"))
+        val barStyle = if (isDarkThemeEnabled()) {
+            SystemBarStyle.dark(Color.TRANSPARENT)
+        } else {
+            SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
+        }
         enableEdgeToEdge(statusBarStyle = barStyle, navigationBarStyle = barStyle)
 
         setContentView(binding.root)
