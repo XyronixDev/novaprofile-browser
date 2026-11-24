@@ -10,6 +10,7 @@ package com.novaprofiles.app.ui
 import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
+import java.util.Locale
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.BackHandler
@@ -233,12 +234,15 @@ fun countryOf(profile: Profile, direct: DirectInfo? = null): Pair<String, String
  */
 fun proxyCountryCode(entryCountry: String): String? {
     val token = entryCountry.substringBefore(" •").trim()
-    if (token.length == 2 && token.uppercase() in Profile.pickerCountries) {
+    if (token.length == 2 && token.all { it.isLetter() }) {
         return token.uppercase()
     }
     return Profile.pickerCountries.firstOrNull {
         Profile.countrySettings(it).label.equals(token, ignoreCase = true)
-    }
+    } ?: Locale.getAvailableLocales().firstOrNull {
+        it.country.length == 2 &&
+            it.getDisplayCountry(Locale.ENGLISH).equals(token, ignoreCase = true)
+    }?.country?.uppercase()
 }
 
 /**
@@ -569,6 +573,7 @@ fun MainScreen(vm: ProfileViewModel, autoRunProfileId: Long? = null, autoRunQuer
                 queryExtra = query ?: p.homeUrl
             ).apply {
                 putExtra(NovaProfileSession.EXTRA_RELOAD_TAB, true)
+                addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
             }
         )
         return true
@@ -829,17 +834,16 @@ fun MainScreen(vm: ProfileViewModel, autoRunProfileId: Long? = null, autoRunQuer
             text = {
                 Text(
                     "NovaProfile ${BuildConfig.VERSION_NAME} " +
-                        "(Build ${BuildConfig.VERSION_CODE}) — DuckDuckGo-powered " +
-                        "multi-profile browser.\n\n" +
-                        "• Unlimited profiles, everything free, no billing, no trial.\n" +
-                        "• Per-profile cookies, proxy, user-agent, language, " +
-                        "screen, WebGL and Canvas settings.\n" +
-                        "• Multi-tab browser with history, bookmarks, downloads, " +
-                        "desktop mode, find in page and translate.\n" +
-                        "• Pro: Fingerprint Lab, Proxy Manager, templates, sessions.\n" +
+                        "(Build ${BuildConfig.VERSION_CODE}) — multi-profile " +
+                        "anti-detect browser.\n\n" +
+                        "• Up to 25 profiles, everything free, no billing, no trial.\n" +
+                        "• Per-profile proxy, cookies, user-agent, language, " +
+                        "screen, WebGL and Canvas.\n" +
+                        "• Multi-tab browser with history, bookmarks, downloads " +
+                        "and desktop mode.\n" +
+                        "• Fingerprint Lab and Proxy Manager included.\n" +
                         "• Fingerprint protection is JS-level inside the system " +
-                        "WebView — it is NOT a Chromium fork and advanced " +
-                        "fingerprint tests can still detect the real device.\n" +
+                        "WebView.\n" +
                         "• One profile runs at a time. Data never leaves your phone."
                 )
             },
