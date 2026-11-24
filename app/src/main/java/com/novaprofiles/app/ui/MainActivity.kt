@@ -1507,9 +1507,6 @@ private fun ProfileCard(
                     }
                 }
                 Box {
-                    IconButton(onClick = { menuOpen = true }, modifier = Modifier.size(32.dp)) {
-                        Icon(Icons.Filled.MoreVert, contentDescription = "More", tint = GoTitle)
-                    }
                     DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                         DropdownMenuItem(
                             text = { Text("Check fingerprint") },
@@ -1591,6 +1588,24 @@ private fun ProfileCard(
                     Icon(Icons.Filled.Edit, null, tint = GoTitle, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(6.dp))
                     Text("Edit", fontWeight = FontWeight.Bold, color = GoTitle, maxLines = 1, softWrap = false)
+                }
+                Box(
+                    modifier = Modifier
+                        .width(1.dp)
+                        .height(24.dp)
+                        .background(GoDivider)
+                )
+                Row(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { menuOpen = true }
+                        .padding(vertical = 8.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("•••", fontWeight = FontWeight.Bold, color = GoTitle, fontSize = 16.sp, maxLines = 1, softWrap = false)
+                    Spacer(Modifier.width(6.dp))
+                    Text("More", fontWeight = FontWeight.Bold, color = GoTitle, maxLines = 1, softWrap = false)
                 }
             }
             // v2.8.26 (DDG port): a proxy check / launch result is
