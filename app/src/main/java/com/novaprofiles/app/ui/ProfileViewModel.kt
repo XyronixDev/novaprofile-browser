@@ -91,10 +91,11 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
         repo.markRun(id)
     }
 
-    fun exportAll(out: OutputStream, list: List<Profile>) = viewModelScope.launch {
+    fun exportAll(out: OutputStream, list: List<Profile>, destLabel: String? = null) = viewModelScope.launch {
         try {
             withContext(Dispatchers.IO) { ProfileExport.export(list, out) }
-            exportResult.value = "Exported ${list.size} profile(s)."
+            exportResult.value = if (destLabel != null) "Exported ${list.size} profile(s) to $destLabel."
+            else "Exported ${list.size} profile(s)."
         } catch (e: Exception) {
             exportResult.value = "Export failed: ${e.message}"
         }
