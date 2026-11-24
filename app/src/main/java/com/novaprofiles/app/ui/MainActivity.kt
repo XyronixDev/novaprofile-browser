@@ -67,6 +67,7 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Shield
@@ -927,9 +928,9 @@ private fun BottomWave(modifier: Modifier = Modifier) {
  * no new logo is invented.
  */
 @Composable
-private fun InfinityLogo(color: Color, fontSize: Int) {
+private fun NovaMark(color: Color, fontSize: Int) {
     Text(
-        "∞",
+        "N",
         color = color,
         fontSize = fontSize.sp,
         fontWeight = FontWeight.Bold,
@@ -1006,10 +1007,10 @@ private fun PremiumHeader(
                     .background(GoGreen),
                 contentAlignment = Alignment.Center
             ) {
-                InfinityLogo(color = Color.White, fontSize = 34)
+                NovaMark(color = Color.White, fontSize = 34)
             }
         } else {
-            InfinityLogo(color = GoGreen, fontSize = 34)
+            NovaMark(color = GoGreen, fontSize = 34)
         }
         Spacer(Modifier.width(8.dp))
         // The title takes the full remaining width so it is never
@@ -2113,6 +2114,7 @@ private fun AddProxyScreen(
                     Regex("""^Myproxy #(\d+)$""").find(it.name)
                         ?.groupValues?.getOrNull(1)?.toIntOrNull()
                 }.maxOrNull() ?: 0
+                val fresh = mutableListOf<ProxyEntry>()
                 for (raw in text.lines()) {
                     if (raw.isBlank()) continue
                     val parsed = parseProxyFileLine(raw)
@@ -2127,12 +2129,25 @@ private fun AddProxyScreen(
                         counter++
                         "Myproxy #${counter}"
                     }
-                    proxyStore.add(parsed.copy(name = name))
+                    val freshEntry = parsed.copy(name = name)
+                    proxyStore.add(freshEntry)
+                    if (existing == null) fresh += freshEntry
                     added++
                 }
-                withContext(Dispatchers.Main) {
-                    status = "Imported $added prox${if (added == 1) "y" else "ies"}" +
-                        if (skipped > 0) " ($skipped lines skipped)" else ""
+                if (fresh.isNotEmpty()) {
+                    withContext(Dispatchers.Main) {
+                        status = "Imported $added — testing…"
+                    }
+                    val results = proxyStore.checkAll(fresh)
+                    results.forEach { proxyStore.update(it) }
+                    withContext(Dispatchers.Main) {
+                        status = "Imported $added — ${results.count { it.ok }} working"
+                    }
+                } else {
+                    withContext(Dispatchers.Main) {
+                        status = "Imported $added prox${if (added == 1) "y" else "ies"}" +
+                            if (skipped > 0) " ($skipped lines skipped)" else ""
+                    }
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
@@ -2209,7 +2224,7 @@ private fun AddProxyScreen(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(56.dp)
+                        .size(48.dp)
                         .clip(RoundedCornerShape(12.dp))
                         .background(GoGreen),
                     contentAlignment = Alignment.Center
@@ -2478,9 +2493,12 @@ private fun ProxyRow(
     val flag = if (code != null) Profile.flagEmoji(code) else "🌐"
     val countryLabel = if (entry.country.isBlank()) "Unknown"
     else entry.country.substringAfter(" • ", entry.country)
-    val ipLine = if (entry.lastIp.isBlank()) "Not tested yet — tap play"
-    else "IP ${entry.lastIp} • ${entry.lastMs} ms"
+    val tested = entry.lastMs > 0L || entry.lastIp.isNotBlank()
+    val ipLine = if (entry.lastIp.isNotBlank()) "IP ${entry.lastIp} • ${entry.lastMs} ms"
+    else if (tested) "Test failed — tap to retry"
+    else "Not tested yet — tap play"
     val ready = entry.ok && entry.lastIp.isNotBlank()
+    val failed = tested && !ready
 
     Row(
         modifier = Modifier
@@ -2502,7 +2520,7 @@ private fun ProxyRow(
             Text(
                 "SOCKS5 ${entry.host}:${entry.port}",
                 fontWeight = FontWeight.Bold,
-                fontSize = 16.sp,
+                fontSize = 15.sp,
                 color = GoTitle,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
@@ -2527,22 +2545,28 @@ private fun ProxyRow(
             Row(
                 modifier = Modifier
                     .clip(RoundedCornerShape(12.dp))
-                    .background(if (ready) Color(0xFFD9F2E5) else Color(0xFFF1F3F4))
-                    .padding(horizontal = 10.dp, vertical = 4.dp),
+                    .background(
+                        if (ready) Color(0xFFD9F2E5)
+                        else if (failed) Color(0xFFFDE8E7) else Color(0xFFF1F3F4)
+                    )
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    Icons.Filled.Check,
+                    if (ready) Icons.Filled.Check
+                    else if (failed) Icons.Filled.Close else Icons.Filled.Schedule,
                     null,
-                    tint = if (ready) GoGreenDark else GoGreyText,
+                    tint = if (ready) GoGreenDark
+                    else if (failed) Color(0xFFD93025) else GoGreyText,
                     modifier = Modifier.size(14.dp)
                 )
                 Spacer(Modifier.width(4.dp))
                 Text(
-                    "Ready",
-                    fontSize = 13.sp,
+                    if (ready) "Ready" else if (failed) "Failed" else "Not tested",
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
-                    color = if (ready) GoGreenDark else GoGreyText,
+                    color = if (ready) GoGreenDark
+                    else if (failed) Color(0xFFD93025) else GoGreyText,
                     maxLines = 1,
                     softWrap = false
                 )
@@ -2550,7 +2574,7 @@ private fun ProxyRow(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
                     modifier = Modifier
-                        .size(40.dp)
+                        .size(36.dp)
                         .clip(CircleShape)
                         .border(1.5.dp, GoGreen, CircleShape)
                         .clickable(onClick = onTest),
@@ -2558,12 +2582,12 @@ private fun ProxyRow(
                 ) {
                     if (testing) {
                         CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
+                            modifier = Modifier.size(18.dp),
                             color = GoGreen,
                             strokeWidth = 2.dp
                         )
                     } else {
-                        Icon(Icons.Filled.PlayArrow, null, tint = GoGreen, modifier = Modifier.size(20.dp))
+                        Icon(Icons.Filled.PlayArrow, null, tint = GoGreen, modifier = Modifier.size(18.dp))
                     }
                 }
                 Box {
