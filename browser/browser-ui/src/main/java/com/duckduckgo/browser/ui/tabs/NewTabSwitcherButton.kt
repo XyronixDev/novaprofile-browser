@@ -69,4 +69,10 @@ class NewTabSwitcherButton @JvmOverloads constructor(
             }
             field = value
         }
+
+    fun setIconTint(color: Int) {
+        binding.tabsImageView.setColorFilter(color)
+        binding.tabCount.setTextColor(color)
+        binding.tabCountInfinite.setTextColor(color)
+    }
 }
