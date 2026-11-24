@@ -10,10 +10,17 @@ package com.novaprofiles.app.ui
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -30,7 +37,9 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -48,7 +57,6 @@ import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DesktopWindows
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandLess
@@ -110,8 +118,6 @@ import com.novaprofiles.app.util.ProxyEntry
 import com.novaprofiles.app.util.ProxyStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.compose.ui.Alignment
@@ -119,16 +125,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
@@ -142,16 +146,15 @@ import com.novaprofiles.app.util.DirectConnection
 import com.novaprofiles.app.util.DirectInfo
 import com.novaprofiles.app.util.NovaProfileSession
 import com.novaprofiles.app.util.ProxyHelper
+import kotlin.math.abs
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // NovaProfile v2.8.2: status bar 100% white on every screen —
-        // solid white background, dark icons. (DDG activities get the
-        // same treatment in DuckDuckGoActivity.)
-        window.statusBarColor = android.graphics.Color.WHITE
-        window.decorView.systemUiVisibility =
-            window.decorView.systemUiVisibility or android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
+        )
         // DDG port: no viewmodel-compose artifact in this project — the
         // ViewModel is created with the standard AndroidViewModelFactory.
         val vm = ViewModelProvider(
@@ -699,7 +702,6 @@ fun MainScreen(vm: ProfileViewModel, autoRunProfileId: Long? = null, autoRunQuer
                 syncingIds = syncingIds,
                 onLaunch = { runProfile(it) },
                 onStop = { stopProfile(it.id) },
-                onStopAll = { stopProfile(null) },
                 onEdit = { openEditForm(it) },
                 onDelete = { pendingDelete = it },
                 onDuplicate = { vm.duplicate(it) },
@@ -732,14 +734,6 @@ fun MainScreen(vm: ProfileViewModel, autoRunProfileId: Long? = null, autoRunQuer
                     proxyReturnToForm = false
                     route = HomeRoute.FORM
                 },
-                onBack = {
-                    if (proxyReturnToForm) {
-                        proxyReturnToForm = false
-                        route = HomeRoute.FORM
-                    } else {
-                        route = HomeRoute.PROFILES
-                    }
-                },
                 onOpenProfiles = { route = HomeRoute.PROFILES },
                 onOpenSettings = { route = HomeRoute.SETTINGS },
                 onAddProfile = { openAddForm() }
@@ -762,12 +756,6 @@ fun MainScreen(vm: ProfileViewModel, autoRunProfileId: Long? = null, autoRunQuer
                         onDraft = { draft = it },
                         onSave = { saveDraft() },
                         onCancel = { cancelForm() },
-                        onDeleteToTrash = {
-                            vm.moveToTrash(d)
-                            draft = null
-                            editingId = null
-                            route = HomeRoute.PROFILES
-                        },
                         onOpenProxyPicker = {
                             proxyReturnToForm = true
                             route = HomeRoute.PROXY
@@ -835,12 +823,13 @@ fun MainScreen(vm: ProfileViewModel, autoRunProfileId: Long? = null, autoRunQuer
  * [content] is the header row (back/logo/title/premium or bell/gear).
  */
 @Composable
-private fun WaveHeader(content: @Composable () -> Unit) {
+internal fun WaveHeader(content: @Composable () -> Unit) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(GoHeaderDark)
+                .statusBarsPadding()
                 .padding(horizontal = 16.dp, vertical = 14.dp),
             contentAlignment = Alignment.TopStart
         ) {
@@ -933,34 +922,31 @@ private fun BrandTitle(modifier: Modifier = Modifier) {
     }
 }
 
-/**
- * Premium header row. Sub-screens show a back arrow (in a
- * translucent dark circle); the logo is the white N in a green circle
- * on every screen.
- */
+/** The gold Premium pill (decorative text only — no paywall). One line, never wrapped. */
 @Composable
-private fun PremiumHeader(
-    showBack: Boolean = false,
-    onBack: () -> Unit = {},
+private fun PremiumPill() {
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(20.dp))
+            .border(1.5.dp, GoGold, RoundedCornerShape(20.dp))
+            .padding(horizontal = 10.dp, vertical = 5.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text("\u265b", color = GoGold, fontSize = 13.sp, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
+        Spacer(Modifier.width(4.dp))
+        Text("Premium", color = GoGold, fontSize = 13.sp, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
+    }
+}
+
+/** Premium header row. The logo is the white N in a green circle on every screen, and the Premium badge is always shown. */
+@Composable
+internal fun PremiumHeader(
     logoInCircle: Boolean = false
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        if (showBack) {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.12f))
-                    .clickable(onClick = onBack),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(Icons.Filled.ArrowBack, null, tint = Color.White, modifier = Modifier.size(24.dp))
-            }
-            Spacer(Modifier.width(8.dp))
-        }
         if (logoInCircle) {
             Box(
                 modifier = Modifier
@@ -975,8 +961,9 @@ private fun PremiumHeader(
             NovaMark(color = GoGreen, fontSize = 34)
         }
         Spacer(Modifier.width(8.dp))
-        // The title takes the full remaining width so it is never clipped.
         BrandTitle(Modifier.weight(1f))
+        Spacer(Modifier.width(8.dp))
+        PremiumPill()
     }
 }
 
@@ -995,6 +982,7 @@ private fun PremiumBottomNav(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .navigationBarsPadding()
             .padding(horizontal = 20.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -1185,7 +1173,6 @@ private fun ProfilesScreen(
     syncingIds: Set<Long>,
     onLaunch: (Profile) -> Unit,
     onStop: (Profile) -> Unit,
-    onStopAll: () -> Unit,
     onEdit: (Profile) -> Unit,
     onDelete: (Profile) -> Unit,
     onDuplicate: (Profile) -> Unit,
@@ -1237,9 +1224,11 @@ private fun ProfilesScreen(
                 beyondViewportPageCount = 1,
                 modifier = Modifier.weight(1f)
             ) { page ->
+                val pageOffset = (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction
+                val pageAlpha = (1f - 0.35f * abs(pageOffset)).coerceIn(0f, 1f)
                 when (page) {
                     0 -> Column(
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier.fillMaxSize().graphicsLayer { alpha = pageAlpha },
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         // Search field + filter button.
@@ -1318,29 +1307,6 @@ private fun ProfilesScreen(
                                 modifier = Modifier.weight(1f),
                                 verticalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                if (runningIds.isNotEmpty()) {
-                                    item {
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(8.dp)
-                                                    .clip(CircleShape)
-                                                    .background(GoGreen)
-                                            )
-                                            Spacer(Modifier.width(8.dp))
-                                            Text(
-                                                "${runningIds.size} profile${if (runningIds.size > 1) "s" else ""} running",
-                                                color = GoGreenDark,
-                                                fontWeight = FontWeight.Bold,
-                                                modifier = Modifier.weight(1f)
-                                            )
-                                            TextButton(onClick = onStopAll) { Text("Stop all", color = GoStopRed) }
-                                        }
-                                    }
-                                }
                                 items(shown, key = { it.id }) { p ->
                                     ProfileCard(
                                         profile = p,
@@ -1371,7 +1337,7 @@ private fun ProfilesScreen(
                         draft = null,
                         onApplyToDraft = {},
                         onDirectForDraft = {},
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier.fillMaxSize().graphicsLayer { alpha = pageAlpha }
                     )
                 }
             }
@@ -1645,7 +1611,6 @@ private fun AddEditFormScreen(
     onDraft: (Profile) -> Unit,
     onSave: () -> Unit,
     onCancel: () -> Unit,
-    onDeleteToTrash: () -> Unit,
     onOpenProxyPicker: () -> Unit,
     onCheckProxy: (Profile) -> Unit,
     proxyCheckResult: String?,
@@ -1669,7 +1634,7 @@ private fun AddEditFormScreen(
 
     Column(modifier = Modifier.fillMaxSize()) {
         WaveHeader {
-            PremiumHeader(showBack = true, onBack = onCancel, logoInCircle = true)
+            PremiumHeader(logoInCircle = true)
         }
         Column(
             modifier = Modifier
@@ -1977,20 +1942,6 @@ private fun AddEditFormScreen(
                     }
                 }
             }
-            if (editing) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable(onClick = onDeleteToTrash)
-                        .padding(bottom = 40.dp),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(Icons.Filled.Delete, null, tint = Color(0xFFD93025), modifier = Modifier.size(20.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text("Delete Profile", color = Color(0xFFD93025), fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                }
-            }
         }
     }
 }
@@ -2004,14 +1955,13 @@ private fun AddProxyScreen(
     draft: Profile?,
     onApplyToDraft: (ProxyEntry) -> Unit,
     onDirectForDraft: () -> Unit,
-    onBack: () -> Unit,
     onOpenProfiles: () -> Unit,
     onOpenSettings: () -> Unit,
     onAddProfile: () -> Unit
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         WaveHeader {
-            PremiumHeader(showBack = true, onBack = onBack, logoInCircle = true)
+            PremiumHeader(logoInCircle = true)
         }
         AddProxyBody(
             proxyStore = proxyStore,
@@ -2092,11 +2042,13 @@ private fun AddProxyBody(
                 if (fresh.isNotEmpty()) {
                     withContext(Dispatchers.Main) {
                         status = "Imported $added — testing…"
+                        testAllRunning = true
                     }
                     val results = proxyStore.checkAll(fresh)
                     results.forEach { proxyStore.update(it) }
                     withContext(Dispatchers.Main) {
                         status = "Imported $added — ${results.count { it.ok }} working"
+                        testAllRunning = false
                     }
                 } else {
                     withContext(Dispatchers.Main) {
@@ -2107,6 +2059,7 @@ private fun AddProxyBody(
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     status = "Import failed: ${e.message}"
+                    testAllRunning = false
                 }
             }
         }
@@ -2133,33 +2086,6 @@ private fun AddProxyBody(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
             Spacer(Modifier.height(2.dp))
-            // Shield-gear avatar + title.
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier.size(64.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(Icons.Filled.Shield, null, tint = GoGreen, modifier = Modifier.size(64.dp))
-                    Icon(Icons.Filled.Settings, null, tint = Color.White, modifier = Modifier.size(27.dp))
-                }
-                Spacer(Modifier.width(16.dp))
-                Column(Modifier.weight(1f)) {
-                    Text("Add Proxy", fontWeight = FontWeight.Bold, fontSize = 21.sp, color = GoTitle)
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        buildAnnotatedString {
-                            append("Import a .txt file, or tap a saved proxy below – it is tested and applied at once. ")
-                            append("Or add one manually. Protocol is ")
-                            withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = GoTitle)) {
-                                append("SOCKS5")
-                            }
-                            append(" – permanently.")
-                        },
-                        color = GoGreyText,
-                        fontSize = 13.sp
-                    )
-                }
-            }
             // Import from file.
             Row(
                 modifier = Modifier
@@ -2382,7 +2308,7 @@ private fun AddProxyBody(
                         testAllRunning = true
                         status = "Testing ${savedProxies.size} proxies…"
                         scope.launch {
-                            val results = savedProxies.map { entry -> async { proxyStore.check(entry) } }.awaitAll()
+                            val results = proxyStore.checkAll(savedProxies)
                             results.forEach { proxyStore.update(it) }
                             testAllRunning = false
                             status = "Tested ${results.size} — ${results.count { it.ok }} working"
@@ -2401,19 +2327,40 @@ private fun AddProxyBody(
                     Text("Test All", fontWeight = FontWeight.Bold, fontSize = 10.sp, maxLines = 1, softWrap = false)
                 }
             }
-            // Saved proxy rows.
-            if (savedProxies.isEmpty()) {
-                Text("No saved proxies yet.", color = GoGreyText)
+            if (testAllRunning && savedProxies.isNotEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxWidth().height(220.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        CircularProgressIndicator(color = GoGreen, strokeWidth = 4.dp, modifier = Modifier.size(48.dp))
+                        Spacer(Modifier.height(12.dp))
+                        Text("Testing proxies…", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = GoTitle)
+                        Spacer(Modifier.height(4.dp))
+                        Text("Checking flags, IP and speed", fontSize = 11.sp, color = GoGreyText)
+                    }
+                }
             }
-            for (entry in savedProxies) {
-                ProxyRow(
-                    entry = entry,
-                    selected = draft?.proxyHost == entry.host && draft?.proxyPort == entry.port && draft?.proxyMode != "NONE",
-                    testing = testingIds.contains(entry.id),
-                    onTap = { testEntry(entry, applyAfter = draft != null) },
-                    onTest = { testEntry(entry, applyAfter = false) },
-                    onDelete = { proxyStore.remove(entry.id) }
-                )
+            AnimatedVisibility(
+                visible = !testAllRunning,
+                enter = fadeIn() + slideInVertically(initialOffsetY = { it / 4 }),
+                exit = fadeOut() + slideOutVertically(targetOffsetY = { it / 4 })
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    if (savedProxies.isEmpty()) {
+                        Text("No saved proxies yet.", color = GoGreyText)
+                    }
+                    for (entry in savedProxies) {
+                        ProxyRow(
+                            entry = entry,
+                            selected = draft?.proxyHost == entry.host && draft?.proxyPort == entry.port && draft?.proxyMode != "NONE",
+                            testing = testingIds.contains(entry.id),
+                            onTap = { testEntry(entry, applyAfter = draft != null) },
+                            onTest = { testEntry(entry, applyAfter = false) },
+                            onDelete = { proxyStore.remove(entry.id) }
+                        )
+                    }
+                }
             }
             Spacer(Modifier.height(8.dp))
     }
