@@ -43,6 +43,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.animateItemPlacement
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -181,7 +182,6 @@ class MainActivity : ComponentActivity() {
         // white flash + "Profile: 0" loop the user filmed.
         val suffixProfileId = autoRunProfileId
             ?: NovaProfileSession.pendingSuffixProfileId(this)
-            ?: NovaProfileSession.lastTabProfileId(this)
         if (suffixProfileId != null) {
             NovaProfileSession.setSuffixEarly(this, suffixProfileId)
             NovaProfileSession.setPendingSuffixProfileId(this, null)
@@ -673,9 +673,36 @@ fun MainScreen(vm: ProfileViewModel, autoRunProfileId: Long? = null, autoRunQuer
     var autoRunDone by remember { mutableStateOf(false) }
     LaunchedEffect(autoRunProfileId) {
         if (!autoRunDone && autoRunProfileId != null) {
+            vm.getProfile(autoRunProfileId)?.let { p ->
+                var toLaunch = p
+                if (p.proxyMode == "NONE" && p.timezoneMode == "IP") {
+                    val tz = directInfo?.timezone.orEmpty()
+                    if (tz.isNotBlank() && tz != p.timezone) {
+                        toLaunch = p.copy(timezone = tz)
+                        vm.updateNow(toLaunch)
+                    }
+                }
+                if (launchProfile(toLaunch, autoRunQuery)) {
+                    runningIds = runningIds + p.id
+                    vm.markRun(p.id)
+                }
+            }
             autoRunDone = true
-            vm.getProfile(autoRunProfileId)?.let { runProfile(it, autoRunQuery) }
         }
+    }
+
+    if (autoRunProfileId != null && !autoRunDone) {
+        Box(
+            modifier = Modifier.fillMaxSize().background(GoContentBg),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                CircularProgressIndicator(color = GoGreen)
+                Spacer(Modifier.height(12.dp))
+                Text("Opening browser…", color = GoGreyText, fontSize = 13.sp)
+            }
+        }
+        return
     }
 
     // Fingerprint Lab (v2.0 Pro) — full-screen check for one profile.
@@ -1310,6 +1337,7 @@ private fun ProfilesScreen(
                             ) {
                                 items(shown, key = { it.id }) { p ->
                                     ProfileCard(
+                                        modifier = Modifier.animateItemPlacement(),
                                         profile = p,
                                         entry = proxyEntryFor(p, savedProxies),
                                         active = isProfileActive(p, savedProxies),
@@ -1355,6 +1383,7 @@ private fun ProfilesScreen(
 /** v2.8.24: one profile card, exactly as in the reference screenshot. */
 @Composable
 private fun ProfileCard(
+    modifier: Modifier = Modifier,
     profile: Profile,
     entry: ProxyEntry?,
     active: Boolean,
@@ -1383,7 +1412,7 @@ private fun ProfileCard(
     }
 
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .height(IntrinsicSize.Max)
             .clip(RoundedCornerShape(20.dp))
