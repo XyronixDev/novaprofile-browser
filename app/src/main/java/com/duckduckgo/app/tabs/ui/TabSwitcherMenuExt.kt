@@ -93,8 +93,7 @@ fun Menu.createDynamicInterface(
         CLOSE -> AppCompatResources.getDrawable(toolbar.context, commonR.drawable.ic_close_24)
     }
 
-    // v2.8.40: the fire button is removed from the tab switcher top bar — always hidden.
-    findItem(R.id.fireToolbarButton).isVisible = false
+    findItem(R.id.fireToolbarButton).isVisible = dynamicMenu.isFireButtonVisible
     findItem(R.id.duckAIToolbarButton).isVisible = dynamicMenu.isDuckAIButtonVisible
     findItem(R.id.newTabToolbarButton).isVisible = dynamicMenu.isNewTabButtonVisible
     findItem(R.id.popupMenuToolbarButton).isVisible = dynamicMenu.isMenuButtonVisible
