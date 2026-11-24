@@ -833,7 +833,7 @@ class OmnibarLayout @JvmOverloads constructor(
     private fun applyNovaProfileToolbarIconTint() {
         browserMenuImageView.setColorFilter(Color.WHITE)
         plusIconImageView.setColorFilter(Color.WHITE)
-        (duckAiSidebar as? ImageView)?.setColorFilter(Color.WHITE)
+        (duckAISidebar as? ImageView)?.setColorFilter(Color.WHITE)
         (tabsMenu as? NewTabSwitcherButton)?.setIconTint(Color.WHITE)
     }
 
