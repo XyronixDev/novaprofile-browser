@@ -983,15 +983,15 @@ private fun PremiumBottomNav(
         modifier = Modifier
             .fillMaxWidth()
             .navigationBarsPadding()
-            .padding(horizontal = 20.dp, vertical = 10.dp),
+            .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Row(
             modifier = Modifier
                 .weight(1f)
+                .height(64.dp)
                 .clip(RoundedCornerShape(32.dp))
-                .background(Color.White)
-                .padding(vertical = 6.dp),
+                .background(Color.White),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -1011,8 +1011,9 @@ private fun PremiumBottomNav(
         Spacer(Modifier.width(12.dp))
         Box(
             modifier = Modifier
-                .size(64.dp)
-                .clip(CircleShape)
+                .width(104.dp)
+                .height(64.dp)
+                .clip(RoundedCornerShape(32.dp))
                 .background(GoGreen)
                 .clickable(onClick = onAddProfile),
             contentAlignment = Alignment.Center
