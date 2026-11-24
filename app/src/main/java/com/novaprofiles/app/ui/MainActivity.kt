@@ -951,22 +951,6 @@ private fun NovaMark(color: Color, fontSize: Int) {
     )
 }
 
-/** v2.8.25: the gold Premium pill (decorative text only — no paywall). One line, never wrapped. */
-@Composable
-private fun PremiumPill() {
-    Row(
-        modifier = Modifier
-            .clip(RoundedCornerShape(20.dp))
-            .border(1.5.dp, GoGold, RoundedCornerShape(20.dp))
-            .padding(horizontal = 10.dp, vertical = 5.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text("♛", color = GoGold, fontSize = 13.sp, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
-        Spacer(Modifier.width(4.dp))
-        Text("Premium", color = GoGold, fontSize = 13.sp, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
-    }
-}
-
 /** v2.8.25: the "NovaProfile / Anti-Detect Browser" title block. One line each, never wrapped. */
 @Composable
 private fun BrandTitle(modifier: Modifier = Modifier) {
@@ -988,8 +972,7 @@ private fun BrandTitle(modifier: Modifier = Modifier) {
 private fun PremiumHeader(
     showBack: Boolean = false,
     onBack: () -> Unit = {},
-    logoInCircle: Boolean = false,
-    showPremium: Boolean = true
+    logoInCircle: Boolean = false
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -1022,12 +1005,8 @@ private fun PremiumHeader(
             NovaMark(color = GoGreen, fontSize = 34)
         }
         Spacer(Modifier.width(8.dp))
-        // The title takes the full remaining width so it is never
-        // clipped; the pill is measured first and keeps its own width.
+        // The title takes the full remaining width so it is never clipped.
         BrandTitle(Modifier.weight(1f))
-        if (showPremium) {
-            PremiumPill()
-        }
     }
 }
 
@@ -1268,8 +1247,7 @@ private fun ProfilesScreen(
     Column(modifier = Modifier.fillMaxSize()) {
         WaveHeader {
             PremiumHeader(
-                logoInCircle = true,
-                showPremium = false
+                logoInCircle = true
             )
         }
         Column(
@@ -2034,7 +2012,7 @@ private fun AddEditFormScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable(onClick = onDeleteToTrash)
-                        .padding(bottom = 16.dp),
+                        .padding(bottom = 40.dp),
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
