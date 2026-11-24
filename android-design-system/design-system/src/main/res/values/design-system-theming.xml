@@ -611,13 +611,6 @@
         <item name="android:actionButtonStyle">@style/TabSwitcher.ActionButton</item>
     </style>
 
-    <!-- v2.8.40: NovaProfile toolbar theme — white icons on the dark green
-         header. The tab switcher icons (fire, add, menu, back) all fill with
-         daxColorPrimaryIcon, so overriding it to white recolors them. -->
-    <style name="NovaProfile.Widget.Toolbar" parent="TabSwitcher.Widget.Toolbar">
-        <item name="daxColorPrimaryIcon">@android:color/white</item>
-    </style>
-
     <style name="TabSwitcher.ActionButton" parent="Widget.AppCompat.ActionButton">
         <item name="android:minWidth">44dp</item>
     </style>
