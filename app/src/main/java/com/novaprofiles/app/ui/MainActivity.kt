@@ -424,7 +424,7 @@ fun profileWithProxy(p: Profile, entry: ProxyEntry): Profile {
 }
 
 /** v2.8.24: premium home navigation — one route per screenshot screen. */
-private enum class HomeRoute { PROFILES, PROXY, SETTINGS, FORM }
+internal enum class HomeRoute { PROFILES, PROXY, SETTINGS, FORM }
 
 /** v2.8.24: the Profiles-list filter behind the funnel button. */
 private enum class ProfileFilter { ALL, ACTIVE, OFFLINE }
