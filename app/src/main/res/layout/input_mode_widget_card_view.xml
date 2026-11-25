@@ -26,7 +26,7 @@
 <com.duckduckgo.duckchat.impl.ui.nativeinput.views.NonCollapsingFrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/inputModeRoot"
-    android:background="?attr/daxColorToolbar"
+    android:background="@color/novaprofile_header_dark"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:clipChildren="false"
