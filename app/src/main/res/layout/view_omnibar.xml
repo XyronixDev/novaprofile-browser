@@ -50,7 +50,7 @@
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
-                app:srcCompat="@drawable/ic_launcher_foreground_novaprofile_v2" />
+                app:srcCompat="@drawable/ic_launcher_foreground_novaprofile" />
 
             <androidx.appcompat.widget.Toolbar
                 android:id="@+id/toolbar"
@@ -134,7 +134,19 @@
                                 app:layout_constraintBottom_toBottomOf="parent"
                                 app:layout_constraintStart_toStartOf="@id/omniBarContentContainer"
                                 app:layout_constraintTop_toTopOf="parent"
-                                app:srcCompat="@drawable/ic_launcher_foreground_novaprofile_v2" />
+                                app:srcCompat="@drawable/ic_launcher_foreground_novaprofile" />
+
+                            <ImageView
+                                android:id="@+id/novaLockIcon"
+                                android:layout_width="20dp"
+                                android:layout_height="20dp"
+                                android:importantForAccessibility="no"
+                                android:scaleType="fitCenter"
+                                android:visibility="gone"
+                                app:layout_constraintBottom_toBottomOf="parent"
+                                app:layout_constraintStart_toStartOf="@id/omniBarContentContainer"
+                                app:layout_constraintTop_toTopOf="parent"
+                                app:srcCompat="@drawable/nova_lock" />
 
                             <FrameLayout
                                 android:id="@+id/omnibarIconContainer"
