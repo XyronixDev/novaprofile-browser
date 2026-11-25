@@ -19,8 +19,10 @@ package com.duckduckgo.browser.ui.browsermenu
 import android.annotation.SuppressLint
 import android.content.Context
 import android.net.Uri
+import android.os.Build
 import android.view.LayoutInflater
 import android.view.View
+import android.view.WindowInsetsController
 import android.widget.LinearLayout
 import androidx.core.view.children
 import androidx.core.view.isVisible
@@ -84,6 +86,22 @@ class BrowserMenuBottomSheet(
                 binding.root,
                 context.getColorFromAttr(com.duckduckgo.mobile.android.R.attr.daxColorSurface),
             )
+            
+            // NovaProfile: the status bar is dark green, so this dialog must
+            // not request dark status bar icons — they would be unreadable
+            // on the dark green bar. Force light (white) status bar icons.
+            window?.let { w ->
+                if (Build.VERSION_SDK_INT >= Build.VERSION_CODES.R) {
+                    w.insetsController?.setSystemBarsAppearance(
+                        0,
+                        WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS,
+                    )
+                } else {
+                    @Suppress("DEPRECATION")
+                    w.decorView.systemUiVisibility =
+                        w.decorView.systemUiVisibility and View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR.inv()
+                }
+            }
 
             behavior.apply {
                 isDraggable = true
