@@ -30,10 +30,13 @@ import android.os.Handler
 import android.os.Looper
 import android.os.Message
 import android.os.SystemClock
+import android.view.Gravity
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
 import android.view.View.IMPORTANT_FOR_AUTOFILL_YES
+import android.view.ViewGroup
+import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.SystemBarStyle
@@ -45,7 +48,9 @@ import androidx.activity.viewModels
 import androidx.annotation.VisibleForTesting
 import androidx.core.net.toUri
 import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
+import androidx.core.view.updateLayoutParams
 import androidx.core.content.ContextCompat
 import com.novaprofiles.app.util.NovaProfileSession
 import com.novaprofiles.app.util.ProxyHelper
@@ -1040,7 +1045,35 @@ open class BrowserActivity : DuckDuckGoActivity() {
         )
         edgeToEdgeHandler.applyNavigationBarInsets(binding.navigationBarMockup.root)
         edgeToEdgeHandler.applyNavigationBarInsets(binding.bottomMockupToolbar.appBarLayoutMockup)
+        installNovaProfileStatusBarScrim()
         applyDisplayCutoutMode(resources.configuration.orientation)
+    }
+
+    private fun installNovaProfileStatusBarScrim() {
+        // NovaProfile header is one continuous dark-green band from the status
+        // bar down through the toolbar, so paint the status-bar strip dark
+        // green. The shared EdgeToEdgeHandler scrim is disabled for this
+        // screen and resolves its colour from the DDG theme toolbar colour,
+        // so install our own scrim in the header colour instead.
+        val tag = "novaprofile_status_bar_scrim"
+        val contentRoot = window.decorView.findViewById<ViewGroup>(android.R.id.content) ?: return
+        if (contentRoot.findViewWithTag<View>(tag) != null) return
+        val scrim = View(this).apply {
+            this.tag = tag
+            setBackgroundColor(getColor(R.color.novaprofile_header_dark))
+            layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, 0, Gravity.TOP)
+        }
+        contentRoot.addView(scrim)
+        ViewCompat.setOnApplyWindowInsetsListener(scrim) { v, insets ->
+            val top = insets.getInsets(
+                WindowInsetsCompat.Type.statusBars() or WindowInsetsCompat.Type.displayCutout(),
+            ).top
+            if (v.layoutParams.height != top) {
+                v.updateLayoutParams { height = top }
+            }
+            insets
+        }
+        ViewCompat.requestApplyInsets(scrim)
     }
 
     private fun configureObservers() {
@@ -1958,7 +1991,7 @@ open class BrowserActivity : DuckDuckGoActivity() {
     }
 
     private fun bindMockupToolbars() {
-        val mockupBrowserMenuIcon = com.duckduckgo.mobile.android.R.drawable.ic_menu_hamburger_24
+        val mockupBrowserMenuIcon = com.duckduckgo.mobile.android.R.drawable.ic_menu_vertical_24
         val isAddressBarRebrandEnabled = appBrandDesignUpdateToggles.addressBar().isEnabled()
         val rebrandInputRadius = resources.getDimension(CommonR.dimen.rebrandInputRadius)
         val legacyInputRadius = resources.getDimension(CommonR.dimen.largeShapeCornerRadius)
@@ -1970,6 +2003,8 @@ open class BrowserActivity : DuckDuckGoActivity() {
             OmnibarType.SINGLE_TOP, OmnibarType.SPLIT -> {
                 binding.bottomMockupToolbar.appBarLayoutMockup.gone()
                 omnibarToolbarMockupBinding = binding.topMockupToolbar
+                // NovaProfile has no fire button anywhere, including the mockup toolbar.
+                binding.topMockupToolbar.fireIconMenu.gone()
                 applyAddressBarRebrandRadius(
                     isAddressBarRebrandEnabled,
                     rebrandInputRadius,
