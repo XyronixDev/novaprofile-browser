@@ -152,7 +152,7 @@ class TabSwitcherViewModel @Inject constructor(
     private val _viewState = MutableStateFlow(
         ViewState(
             isSplitOmnibarEnabled = omnibarRepository.omnibarType == OmnibarType.SPLIT,
-            isBrowserModeToggleVisible = fireModeAvailable,
+            isBrowserModeToggleVisible = false,
             browserMode = currentMode.value,
         ),
     )
@@ -173,7 +173,7 @@ class TabSwitcherViewModel @Inject constructor(
                 tabSwitcherPromoHandled = true
                 fireTabsPromos.onTabSwitcherPromoShown()
                 pixel.fire(AppPixelName.FIRE_TABS_PROMO_TAB_SWITCHER_SHOWN)
-                _viewState.update { it.copy(isFireTabsPromoVisible = true) }
+                _viewState.update { it.copy(isFireTabsPromoVisible = false) }
             }
         }
         viewModelScope.launch {
@@ -832,7 +832,7 @@ class TabSwitcherViewModel @Inject constructor(
         val dynamicInterface = when (mode) {
             is Normal -> {
                 DynamicInterface(
-                    isFireButtonVisible = !isSplitOmnibarEnabled,
+                    isFireButtonVisible = false,
                     isNewTabButtonVisible = !isSplitOmnibarEnabled,
                     isDuckAIButtonVisible = isDuckAIButtonVisible,
                     isMenuButtonVisible = !isSplitOmnibarEnabled,
