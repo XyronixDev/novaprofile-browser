@@ -21,14 +21,14 @@
     android:id="@+id/appBarLayoutMockup"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="?daxColorToolbar"
+    android:background="@color/novaprofile_header_dark"
     android:clipChildren="false">
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/appBarLayoutMockupContainer"
         android:layout_width="match_parent"
         android:layout_height="?attr/actionBarSize"
-        android:background="?daxColorToolbar"
+        android:background="@color/novaprofile_header_dark"
         android:clipChildren="false">
 
         <com.google.android.material.card.MaterialCardView
