@@ -542,7 +542,10 @@ class OmnibarLayout @JvmOverloads constructor(
             viewModel.onDuckAiHeaderClicked()
         }
         duckAISidebar.setOnClickListener {
-            omnibarItemPressedListener?.onDuckAISidebarButtonPressed()
+            if (isAttachedToWindow) {
+                viewModel.onPrivacyShieldButtonPressed()
+            }
+            omnibarItemPressedListener?.onPrivacyShieldPressed()
         }
     }
 
@@ -606,13 +609,6 @@ class OmnibarLayout @JvmOverloads constructor(
 
             iconsContainer.updateLayoutParams {
                 flipOmnibarMargins()
-            }
-
-            duckAISidebar.updateLayoutParams {
-                (this as MarginLayoutParams).apply {
-                    topMargin = omnibarCardMarginBottom
-                    bottomMargin = omnibarCardMarginTop
-                }
             }
 
             shieldIconPulseAnimationContainer.updateLayoutParams {
@@ -699,7 +695,7 @@ class OmnibarLayout @JvmOverloads constructor(
             }
 
             PrivacyShield -> {
-                novaProfileIcon.show()
+                novaProfileIcon.gone()
                 shieldIcon.gone()
                 searchIcon.gone()
                 daxIcon.gone()
@@ -817,7 +813,7 @@ class OmnibarLayout @JvmOverloads constructor(
         aiChatMenu?.isVisible = newTransitionState.showChatMenu
         applyAiChatMenuStyling(viewState.showContextualSheetIcon)
         aiChatDivider.isVisible = viewState.showVoiceSearch && viewState.showChatMenu
-        duckAISidebar.isVisible = newTransitionState.showDuckSidebar
+        duckAISidebar.isVisible = true
 
         if (omnibarAnimationManager.isFeatureEnabled()) {
             toolbarContainer.requestLayout()
@@ -833,7 +829,6 @@ class OmnibarLayout @JvmOverloads constructor(
     private fun applyNovaProfileToolbarIconTint() {
         browserMenuImageView.setColorFilter(Color.WHITE)
         plusIconImageView.setColorFilter(Color.WHITE)
-        (duckAISidebar as? ImageView)?.setColorFilter(Color.WHITE)
         (tabsMenu as? NewTabSwitcherButton)?.setIconTint(Color.WHITE)
     }
 
