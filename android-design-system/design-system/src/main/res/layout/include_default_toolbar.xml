@@ -35,12 +35,12 @@
         app:buttonGravity="center_vertical"
         app:popupTheme="@style/Widget.DuckDuckGo.PopUpOverflowMenu" />
 
-    <View
-        android:id="@+id/topBrowserOutlineStroke"
+    <ImageView
+        android:id="@+id/novaWaveToolbar"
         android:layout_width="match_parent"
-        android:layout_height="0.5dp"
-        android:background="?attr/daxColorShade"
-        android:layout_alignParentBottom="true" />
+        android:layout_height="24dp"
+        android:importantForAccessibility="no"
+        android:scaleType="fitXY"
+        android:src="@drawable/nova_wave" />
 
 </com.google.android.material.appbar.AppBarLayout>
-
