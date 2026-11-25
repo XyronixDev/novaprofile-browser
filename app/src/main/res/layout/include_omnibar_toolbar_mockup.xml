@@ -16,158 +16,192 @@
   ~ limitations under the License.
   -->
 
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!-- NovaProfile mockup toolbar: kept visually identical to the real browser
+  header (dark green, old N icon, white pill, vertical-dots menu, bright
+  green wave) so the header never flashes a different design while a tab
+  loads, a new tab opens, or a URL is tapped. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/appBarLayoutMockup"
     android:layout_width="match_parent"
-    android:layout_height="?attr/actionBarSize"
-    android:background="?daxColorToolbar"
-    android:clipChildren="false">
+    android:layout_height="wrap_content"
+    android:background="@color/novaprofile_header_dark"
+    android:orientation="vertical">
 
-    <com.google.android.material.card.MaterialCardView
-        android:id="@+id/mockOmniBarContainerShadow"
-        app:cardCornerRadius="@dimen/largeShapeCornerRadius"
-        android:layout_width="0dp"
-        android:layout_height="match_parent"
-        android:layout_marginStart="@dimen/omnibarCardMarginHorizontal"
-        android:layout_marginEnd="@dimen/omnibarCardMarginEnd"
-        android:layout_marginTop="@dimen/omnibarCardMarginTop"
-        android:layout_marginBottom="@dimen/omnibarCardMarginBottom"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toStartOf="@id/iconsContainer"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="@color/novaprofile_header_dark"
+        android:clipChildren="false">
+
+        <ImageView
+            android:id="@+id/mockNovaIcon"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginStart="@dimen/keyline_3"
+            android:layout_marginTop="4dp"
+            android:layout_marginBottom="4dp"
+            android:contentDescription="@string/browserMenuChatHistory"
+            android:scaleType="fitCenter"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:srcCompat="@drawable/ic_launcher_foreground_novaprofile" />
 
         <com.google.android.material.card.MaterialCardView
-            android:id="@+id/omniBarContainerMockup"
-            style="@style/Widget.DuckDuckGo.OmnibarCardView"
-            android:layout_width="match_parent"
+            android:id="@+id/mockOmniBarContainerShadow"
+            app:cardCornerRadius="@dimen/largeShapeCornerRadius"
+            android:layout_width="0dp"
             android:layout_height="match_parent"
-            app:cardElevation="0dp">
+            android:layout_marginStart="@dimen/omnibarCardMarginHorizontal"
+            android:layout_marginEnd="@dimen/omnibarCardMarginEnd"
+            android:layout_marginTop="@dimen/omnibarCardMarginTop"
+            android:layout_marginBottom="@dimen/omnibarCardMarginBottom"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/iconsContainer"
+            app:layout_constraintStart_toEndOf="@id/mockNovaIcon"
+            app:layout_constraintTop_toTopOf="parent">
 
-            <LinearLayout
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/omniBarContainerMockup"
+                style="@style/Widget.DuckDuckGo.OmnibarCardView"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:orientation="horizontal">
+                app:cardElevation="0dp">
 
-                <ImageView
-                    android:id="@+id/searchIconMockup"
-                    android:layout_width="wrap_content"
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="match_parent"
-                    android:gravity="center"
-                    android:importantForAccessibility="no"
-                    android:paddingVertical="6dp"
-                    android:paddingStart="10dp"
-                    android:paddingEnd="8dp"
-                    android:src="@drawable/ic_find_search_small_24" />
+                    android:orientation="horizontal">
 
-                <com.duckduckgo.common.ui.view.text.DaxTextView
-                    android:id="@+id/omnibarTextInputMockup"
-                    android:layout_width="0dp"
-                    android:layout_height="match_parent"
-                    android:layout_weight="1"
-                    android:gravity="start|center"
-                    android:maxLines="1"
-                    android:paddingEnd="8dp"
-                    android:text="@string/search"
-                    android:textColor="?attr/daxColorSecondaryText" />
+                    <ImageView
+                        android:id="@+id/searchIconMockup"
+                        android:layout_width="wrap_content"
+                        android:layout_height="match_parent"
+                        android:gravity="center"
+                        android:importantForAccessibility="no"
+                        android:paddingVertical="6dp"
+                        android:paddingStart="10dp"
+                        android:paddingEnd="8dp"
+                        android:src="@drawable/ic_find_search_small_24" />
 
-                <ImageView
-                    android:id="@+id/aiChatIconMockup"
-                    android:layout_width="wrap_content"
-                    android:layout_height="match_parent"
-                    android:gravity="center"
-                    android:importantForAccessibility="no"
-                    android:paddingVertical="6dp"
-                    android:paddingHorizontal="10dp"
-                    android:src="@drawable/ic_ai_chat_24" />
+                    <com.duckduckgo.common.ui.view.text.DaxTextView
+                        android:id="@+id/omnibarTextInputMockup"
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_weight="1"
+                        android:gravity="start|center"
+                        android:maxLines="1"
+                        android:paddingEnd="8dp"
+                        android:text="@string/search"
+                        android:textColor="?attr/daxColorSecondaryText" />
 
-            </LinearLayout>
+                    <ImageView
+                        android:id="@+id/aiChatIconMockup"
+                        android:layout_width="wrap_content"
+                        android:layout_height="match_parent"
+                        android:gravity="center"
+                        android:importantForAccessibility="no"
+                        android:paddingVertical="6dp"
+                        android:paddingHorizontal="10dp"
+                        android:src="@drawable/ic_ai_chat_24" />
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
 
         </com.google.android.material.card.MaterialCardView>
 
-    </com.google.android.material.card.MaterialCardView>
-
-    <androidx.constraintlayout.widget.ConstraintLayout
-        android:id="@+id/iconsContainer"
-        android:layout_width="wrap_content"
-        android:layout_height="@dimen/toolbarIcon"
-        android:layout_marginTop="@dimen/omnibarCardMarginTop"
-        android:layout_marginBottom="@dimen/omnibarCardMarginBottom"
-        android:layout_marginEnd="@dimen/keyline_1"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toEndOf="@id/mockOmniBarContainerShadow"
-        app:layout_constraintTop_toTopOf="parent">
-
-        <com.duckduckgo.browser.ui.tabs.NewTabSwitcherButton
-            android:id="@+id/tabsMenu"
-            android:layout_width="@dimen/toolbarIcon"
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/iconsContainer"
+            android:layout_width="wrap_content"
             android:layout_height="@dimen/toolbarIcon"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toStartOf="@id/browserMenu"
-            app:layout_constraintStart_toEndOf="@id/fireIconMenu"
-            app:layout_constraintTop_toTopOf="parent" />
-
-        <FrameLayout
-            android:id="@+id/browserMenu"
-            android:layout_width="@dimen/toolbarIcon"
-            android:layout_height="@dimen/toolbarIcon"
-            android:background="@drawable/selectable_item_rounded_corner_background"
+            android:layout_marginTop="@dimen/omnibarCardMarginTop"
+            android:layout_marginBottom="@dimen/omnibarCardMarginBottom"
+            android:layout_marginEnd="@dimen/keyline_1"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toEndOf="@id/tabsMenu"
+            app:layout_constraintStart_toEndOf="@id/mockOmniBarContainerShadow"
             app:layout_constraintTop_toTopOf="parent">
 
-            <ImageView
-                android:id="@+id/browserMenuImageView"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:contentDescription="@string/browserPopupMenu"
-                android:scaleType="center"
-                android:src="@drawable/ic_menu_vertical_24" />
+            <com.duckduckgo.browser.ui.tabs.NewTabSwitcherButton
+                android:id="@+id/tabsMenu"
+                android:layout_width="@dimen/toolbarIcon"
+                android:layout_height="@dimen/toolbarIcon"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toStartOf="@id/browserMenu"
+                app:layout_constraintStart_toEndOf="@id/fireIconMenu"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <FrameLayout
+                android:id="@+id/browserMenu"
+                android:layout_width="@dimen/toolbarIcon"
+                android:layout_height="@dimen/toolbarIcon"
+                android:background="@drawable/selectable_item_rounded_corner_background"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toEndOf="@id/tabsMenu"
+                app:layout_constraintTop_toTopOf="parent">
+
+                <ImageView
+                    android:id="@+id/browserMenuImageView"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:contentDescription="@string/browserPopupMenu"
+                    android:scaleType="center"
+                    android:src="@drawable/ic_menu_vertical_24" />
 
 
-            <View
-                android:id="@+id/browserMenuHighlight"
-                android:layout_width="7dp"
-                android:layout_height="7dp"
-                android:layout_gravity="end"
-                android:layout_margin="@dimen/keyline_2"
-                android:background="@drawable/ic_dot_indicator_7"
-                android:visibility="gone" />
+                <View
+                    android:id="@+id/browserMenuHighlight"
+                    android:layout_width="7dp"
+                    android:layout_height="7dp"
+                    android:layout_gravity="end"
+                    android:layout_margin="@dimen/keyline_2"
+                    android:background="@drawable/ic_dot_indicator_7"
+                    android:visibility="gone" />
 
-        </FrameLayout>
+            </FrameLayout>
 
-        <FrameLayout
-            android:id="@+id/fireIconMenu"
-            android:layout_width="@dimen/toolbarIcon"
-            android:layout_height="@dimen/toolbarIcon"
-            android:background="@drawable/selectable_item_rounded_corner_background"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toStartOf="@id/tabsMenu"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent">
+            <FrameLayout
+                android:id="@+id/fireIconMenu"
+                android:layout_width="@dimen/toolbarIcon"
+                android:layout_height="@dimen/toolbarIcon"
+                android:background="@drawable/selectable_item_rounded_corner_background"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toStartOf="@id/tabsMenu"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent">
 
-            <ImageView
-                android:id="@+id/fireIconImageView"
-                android:layout_width="@dimen/bottomNavIcon"
-                android:layout_height="@dimen/bottomNavIcon"
-                android:layout_gravity="center"
-                android:contentDescription="@string/fireMenu"
-                android:scaleType="center"
-                android:src="@drawable/ic_fire_24" />
-        </FrameLayout>
+                <ImageView
+                    android:id="@+id/fireIconImageView"
+                    android:layout_width="@dimen/bottomNavIcon"
+                    android:layout_height="@dimen/bottomNavIcon"
+                    android:layout_gravity="center"
+                    android:contentDescription="@string/fireMenu"
+                    android:scaleType="center"
+                    android:src="@drawable/ic_fire_24" />
+            </FrameLayout>
 
-        <Space
-            android:layout_width="@dimen/omnibarCardExtendedMarginEnd"
-            android:layout_height="match_parent"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
+            <Space
+                android:layout_width="@dimen/omnibarCardExtendedMarginEnd"
+                android:layout_height="match_parent"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+    <ImageView
+        android:id="@+id/novaWaveMockup"
+        android:layout_width="match_parent"
+        android:layout_height="24dp"
+        android:importantForAccessibility="no"
+        android:scaleType="fitXY"
+        android:src="@drawable/nova_wave" />
+
+</LinearLayout>
