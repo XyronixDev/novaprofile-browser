@@ -1059,6 +1059,10 @@ class TabSwitcherActivity :
             },
         )
 
+        // NovaProfile: no fire button in the tab switcher — data clearing
+        // stays available from the browser menu and Data Clearing settings.
+        menu.findItem(R.id.fireToolbarButton)?.isVisible = false
+
         // Menu items only exist after inflation, so their icons are tinted here
         // rather than in the onCreate chrome setup.
         toolbar.navigationIcon?.mutate()?.setTint(Color.WHITE)
