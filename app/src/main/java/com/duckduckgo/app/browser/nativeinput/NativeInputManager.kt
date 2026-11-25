@@ -1412,7 +1412,7 @@ class RealNativeInputManager @Inject constructor(
         } else {
             container.visibility = if (show) View.VISIBLE else View.GONE
         }
-        widgetView.findViewById<View?>(R.id.inputModeWidgetNavFire)?.setOnClickListener { callbacks.onFireButtonPressed() }
+        widgetView.findViewById<View?>(R.id.inputModeWidgetNavFire)?.gone()
         widgetView.findViewById<View?>(R.id.inputModeWidgetNavMenu)?.setOnClickListener { callbacks.onBrowserMenuPressed() }
         widgetView.findViewById<TabSwitcherButton?>(R.id.inputModeWidgetNavTabs)?.let { tabsButton ->
             tabsButton.setOnClickListener { callbacks.onTabSwitcherPressed() }
@@ -1616,7 +1616,7 @@ class RealNativeInputManager @Inject constructor(
             rootView.findViewById<View?>(R.id.topBrowserOutlineStroke)?.gone()
             if (omnibarController.isBrowserMode()) {
                 widgetView.setBackgroundColor(
-                    widgetView.context.getColorFromAttr(com.duckduckgo.mobile.android.R.attr.daxColorBackground),
+                    widgetView.context.getColor(R.color.novaprofile_header_dark),
                 )
             } else if (omnibarController.isDuckAiMode()) {
                 widgetView.setBackgroundColor(
@@ -1858,7 +1858,7 @@ internal fun bindInputModeNavBar(
     onBrowserMenu: () -> Unit,
 ) {
     navBarView.findViewById<View?>(R.id.inputModeWidgetNavBack)?.setOnClickListener { onBack() }
-    navBarView.findViewById<View?>(R.id.inputModeWidgetNavFire)?.setOnClickListener { onFire() }
+    navBarView.findViewById<View?>(R.id.inputModeWidgetNavFire)?.gone()
     navBarView.findViewById<View?>(R.id.inputModeWidgetNavTabs)?.setOnClickListener { onTabs() }
     navBarView.findViewById<View?>(R.id.inputModeWidgetNavMenu)?.setOnClickListener { onBrowserMenu() }
 }
