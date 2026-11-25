@@ -89,14 +89,16 @@ abstract class DuckDuckGoActivity : InjectableActivity() {
                 R.style.ThemeOverlay_Rebrand_Badges.takeIf { appBrandDesignUpdateToggles.badges().isEnabled() },
             ),
         )
+        // NovaProfile: lock the whole app to the NovaProfile theme — dark
+        // green toolbar/status bar, white surfaces. Applied here (the base
+        // class) so every browser screen gets it, not just the browser tab.
+        theme.applyStyle(R.style.ThemeOverlay_NovaProfile, true)
         super.onCreate(savedInstanceState)
-        // NovaProfile v2.8.2: status bar 100% white on every screen —
-        // solid white background, dark icons. The light theme's bar
-        // was transparent, so the content behind it showed through
-        // as grey on some screens.
-        window.statusBarColor = Color.WHITE
+        // NovaProfile: status bar is the locked dark green on every screen,
+        // with light (white) icons — the white status bar is removed.
+        window.statusBarColor = Color.parseColor("#0B3D2E")
         window.decorView.systemUiVisibility =
-            window.decorView.systemUiVisibility or View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+            window.decorView.systemUiVisibility and View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR.inv()
     }
 
     protected fun injectDependencies() {
@@ -124,6 +126,10 @@ abstract class DuckDuckGoActivity : InjectableActivity() {
         setSupportActionBar(toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         toolbar.setNavigationIcon(R.drawable.ic_arrow_left_24)
+        // NovaProfile: the toolbar is dark green, so the title and the
+        // back arrow must be white or they are unreadable on it.
+        toolbar.setTitleTextColor(Color.WHITE)
+        toolbar.navigationIcon?.mutate()?.setTint(Color.WHITE)
     }
 
     fun isDarkThemeEnabled(): Boolean {
@@ -137,17 +143,13 @@ abstract class DuckDuckGoActivity : InjectableActivity() {
      * edge-to-edge is enabled for the screen.
      */
     protected fun enableTransparentEdgeToEdge() {
-        val barStyle = if (isDarkThemeEnabled()) {
-            SystemBarStyle.dark(Color.TRANSPARENT)
-        } else {
-            SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
-        }
+        // NovaProfile: the bars are dark green with light (white) icons —
+        // the light bar style and the white status bar are removed.
+        val barStyle = SystemBarStyle.dark(Color.TRANSPARENT)
         enableEdgeToEdge(statusBarStyle = barStyle, navigationBarStyle = barStyle)
-        // NovaProfile v2.8.2: re-apply the solid white status bar —
-        // enableEdgeToEdge above resets it to transparent, and the
-        // user wants 100% white on every screen. The light bar style
-        // (dark icons) set above is kept.
-        window.statusBarColor = Color.WHITE
+        // enableEdgeToEdge above resets the status bar to transparent, so
+        // re-apply the locked dark green.
+        window.statusBarColor = Color.parseColor("#0B3D2E")
         applyDisplayCutoutMode(resources.configuration.orientation)
     }
 
