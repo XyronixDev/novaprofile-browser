@@ -971,17 +971,9 @@ class BrowserTabFragment :
             }
 
             override suspend fun promptUserToImportPassword(originalUrl: String) {
-                withContext(dispatchers.main()) {
-                    showDialogHidingPrevious(
-                        credentialAutofillDialogFactory.autofillImportPasswordsPromoDialog(
-                            importSource = InBrowserPromo,
-                            tabId = tabId,
-                            url = originalUrl,
-                        ),
-                        tabId,
-                        requiredUrl = originalUrl,
-                    )
-                }
+                // NovaProfile: the DuckDuckGo "import passwords from Google"
+                // promo is removed — no DDG-branded import prompt is shown
+                // in the browser.
             }
 
             override suspend fun onCredentialsAvailableToSave(
