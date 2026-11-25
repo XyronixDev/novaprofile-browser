@@ -27,6 +27,7 @@ import android.view.Menu
 import android.view.MenuItem
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewGroup
 import android.view.ViewTreeObserver
 import android.widget.FrameLayout
 import androidx.activity.OnBackPressedCallback
@@ -35,9 +36,12 @@ import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatDelegate.FEATURE_SUPPORT_ACTION_BAR
 import androidx.appcompat.widget.Toolbar
 import androidx.core.text.HtmlCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.children
 import androidx.core.view.doOnPreDraw
 import androidx.core.view.isVisible
+import androidx.core.view.updateLayoutParams
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.flowWithLifecycle
 import androidx.lifecycle.lifecycleScope
@@ -301,14 +305,15 @@ class TabSwitcherActivity :
 
         if (switchToRequestedModeIfNeeded(savedInstanceState)) return
 
-        val barStyle = if (isDarkThemeEnabled()) {
-            SystemBarStyle.dark(Color.TRANSPARENT)
-        } else {
-            SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
-        }
+        // NovaProfile header is always dark green, so the status bar always uses
+        // light icons to stay readable on it, regardless of the system theme.
+        val barStyle = SystemBarStyle.dark(Color.TRANSPARENT)
         enableEdgeToEdge(statusBarStyle = barStyle, navigationBarStyle = barStyle)
 
         setContentView(binding.root)
+        // Install after setContentView: setContentView() calls removeAllViews() on the
+        // content parent, which deletes a scrim installed earlier before it is ever drawn.
+        installNovaProfileStatusBarScrim()
 
         fadingInAfterRecreate = savedInstanceState?.getBoolean(KEY_FADE_IN_AFTER_RECREATE) == true
         switchedModeFromDrag = savedInstanceState?.getBoolean(KEY_MODE_SWITCH_FROM_DRAG) == true
@@ -327,6 +332,7 @@ class TabSwitcherActivity :
 
         configureViewReferences()
         setupToolbar(toolbar)
+        applyNovaProfileTabSwitcherChrome()
         configureRecycler()
         configureNavigationBar()
         configureFireTabsEmptyState()
@@ -405,6 +411,40 @@ class TabSwitcherActivity :
         }
     }
 
+    private fun applyNovaProfileTabSwitcherChrome() {
+        // Tab switcher toolbar is dark green like the browser header, so its title
+        // and icons must be white to stay readable on it.
+        toolbar.setTitleTextColor(Color.WHITE)
+        toolbar.navigationIcon?.mutate()?.setTint(Color.WHITE)
+        toolbar.overflowIcon?.mutate()?.setTint(Color.WHITE)
+    }
+
+    private fun installNovaProfileStatusBarScrim() {
+        // NovaProfile header is one continuous dark-green band from the status
+        // bar down through the toolbar, so paint the status-bar strip dark
+        // green. The shared EdgeToEdgeHandler scrim is disabled for this
+        // screen and resolves its colour from the DDG theme toolbar colour,
+        // so install our own scrim in the header colour instead.
+        val tag = "novaprofile_status_bar_scrim"
+        val contentRoot = window.decorView.findViewById<ViewGroup>(android.R.id.content) ?: return
+        if (contentRoot.findViewWithTag<View>(tag) != null) return
+        val scrim = View(this).apply {
+            this.tag = tag
+            setBackgroundColor(getColor(R.color.novaprofile_header_dark))
+            layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, 0, Gravity.TOP)
+        }
+        contentRoot.addView(scrim)
+        ViewCompat.setOnApplyWindowInsetsListener(scrim) { v, insets ->
+            val top = insets.getInsets(
+                WindowInsetsCompat.Type.statusBars() or WindowInsetsCompat.Type.displayCutout(),
+            ).top
+            if (v.layoutParams.height != top) {
+                v.updateLayoutParams { height = top }
+            }
+            insets
+        }
+    }
+
     private fun configureEdgeToEdgeInsets() {
         edgeToEdgeHandler.applyHorizontalSystemBarInsets(binding.root)
         applyDisplayCutoutMode(resources.configuration.orientation)
@@ -412,17 +452,19 @@ class TabSwitcherActivity :
         when (settingsDataStore.omnibarType) {
             OmnibarType.SINGLE_TOP -> {
                 edgeToEdgeHandler.applyStatusBarInsets(binding.tabSwitcherToolbarTop.root)
+                binding.tabSwitcherToolbarTop.root.setBackgroundColor(getColor(R.color.novaprofile_header_dark))
                 edgeToEdgeHandler.applyNavigationBarInsets(tabsContainer, drawBehindGestureNav = true)
             }
             OmnibarType.SINGLE_BOTTOM -> {
                 edgeToEdgeHandler.applyStatusBarInsets(tabsContainer)
                 edgeToEdgeHandler.applyNavigationBarInsets(binding.tabSwitcherToolbarBottom.appBarLayout)
                 binding.tabSwitcherToolbarBottom.appBarLayout.setBackgroundColor(
-                    getColorFromAttr(com.duckduckgo.mobile.android.R.attr.daxColorToolbar),
+                    getColor(R.color.novaprofile_header_dark),
                 )
             }
             OmnibarType.SPLIT -> {
                 edgeToEdgeHandler.applyStatusBarInsets(binding.tabSwitcherToolbarTop.root)
+                binding.tabSwitcherToolbarTop.root.setBackgroundColor(getColor(R.color.novaprofile_header_dark))
                 edgeToEdgeHandler.applyNavigationBarInsets(binding.navigationBar)
             }
         }
