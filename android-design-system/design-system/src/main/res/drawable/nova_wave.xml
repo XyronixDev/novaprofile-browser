@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  NovaProfile browser header wave. Bright green wavy band at the bottom of the
+  dark green header, matching the target browser screenshot. The top path
+  extends the dark header down to the wave's wavy top edge so no white gap
+  shows between header and wave; the bottom path is the bright green band.
+  Viewport 360x24, two sine cycles across the width.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="360dp"
+    android:height="24dp"
+    android:viewportWidth="360"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="@color/novaprofile_header_dark"
+        android:pathData="M0,0 L360,0 L360,7.5 Q315,-4.5 270,7.5 Q225,19.5 180,7.5 Q135,-4.5 90,7.5 Q45,19.5 0,7.5 Z" />
+    <path
+        android:fillColor="@color/novaprofile_wave_green"
+        android:pathData="M0,7.5 Q45,19.5 90,7.5 Q135,-4.5 180,7.5 Q225,19.5 270,7.5 Q315,-4.5 360,7.5 L360,16.5 Q315,4.5 270,16.5 Q225,28.5 180,16.5 Q135,4.5 90,16.5 Q45,28.5 0,16.5 Z" />
+</vector>
