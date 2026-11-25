@@ -303,7 +303,7 @@ class RealNativeInputOmnibarController(
         val omnibarView = omnibar.omnibarView as? View ?: return
         val ctx = omnibarView.context
         omnibarView.findViewById<View?>(R.id.toolbarContainer)
-            ?.setBackgroundColor(ctx.getColorFromAttr(com.duckduckgo.mobile.android.R.attr.daxColorToolbar))
+            ?.setBackgroundColor(ctx.getColor(R.color.novaprofile_header_dark))
         omnibarView.findViewById<MaterialCardView?>(R.id.omniBarContainerShadow)?.apply {
             setCardBackgroundColor(ctx.getColorFromAttr(com.google.android.material.R.attr.colorSurface))
             val isTop = omnibar.omnibarType == OmnibarType.SINGLE_TOP || omnibar.omnibarType == OmnibarType.SPLIT
