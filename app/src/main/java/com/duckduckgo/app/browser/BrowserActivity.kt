@@ -1029,11 +1029,9 @@ open class BrowserActivity : DuckDuckGoActivity() {
 
     private fun configureEdgeToEdge() {
         val toolbarColor = getColorFromAttr(com.duckduckgo.mobile.android.R.attr.daxColorToolbar)
-        val barStyle = if (isDarkThemeEnabled()) {
-            SystemBarStyle.dark(toolbarColor)
-        } else {
-            SystemBarStyle.light(toolbarColor, toolbarColor)
-        }
+        // NovaProfile browser header is always dark green, so the status bar always
+        // uses light icons to stay readable on it, regardless of the system theme.
+        val barStyle = SystemBarStyle.dark(toolbarColor)
         enableEdgeToEdge(statusBarStyle = barStyle, navigationBarStyle = barStyle)
         edgeToEdgeHandler.applyStatusBarAndHorizontalInsets(
             binding.root,
