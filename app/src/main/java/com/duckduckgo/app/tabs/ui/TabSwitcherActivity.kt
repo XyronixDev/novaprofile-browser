@@ -1059,6 +1059,14 @@ class TabSwitcherActivity :
             },
         )
 
+        // Menu items only exist after inflation, so their icons are tinted here
+        // rather than in the onCreate chrome setup.
+        toolbar.navigationIcon?.mutate()?.setTint(Color.WHITE)
+        toolbar.overflowIcon?.mutate()?.setTint(Color.WHITE)
+        for (i in 0 until menu.size()) {
+            menu.getItem(i).icon?.mutate()?.setTint(Color.WHITE)
+        }
+
         return true
     }
 
