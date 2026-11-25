@@ -91,7 +91,7 @@ class BrowserMenuBottomSheet(
             // not request dark status bar icons — they would be unreadable
             // on the dark green bar. Force light (white) status bar icons.
             window?.let { w ->
-                if (Build.VERSION_SDK_INT >= Build.VERSION_CODES.R) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                     w.insetsController?.setSystemBarsAppearance(
                         0,
                         WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS,
