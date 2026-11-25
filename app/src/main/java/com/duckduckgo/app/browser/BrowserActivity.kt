@@ -445,6 +445,9 @@ open class BrowserActivity : DuckDuckGoActivity() {
         configureEdgeToEdge()
 
         setContentView(binding.root)
+        // Install after setContentView: setContentView() calls removeAllViews() on the
+        // content parent, which deletes a scrim installed earlier before it is ever drawn.
+        installNovaProfileStatusBarScrim()
 
         ContextCompat.registerReceiver(
             this,
@@ -1045,7 +1048,6 @@ open class BrowserActivity : DuckDuckGoActivity() {
         )
         edgeToEdgeHandler.applyNavigationBarInsets(binding.navigationBarMockup.root)
         edgeToEdgeHandler.applyNavigationBarInsets(binding.bottomMockupToolbar.appBarLayoutMockup)
-        installNovaProfileStatusBarScrim()
         applyDisplayCutoutMode(resources.configuration.orientation)
     }
 
