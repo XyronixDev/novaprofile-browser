@@ -1708,7 +1708,7 @@ class BrowserTabFragment :
             serpLogoUrl = serpLogoUrl,
         )
         logcat { "BrowserMenu: viewMode ${omnibar.viewMode} render browseMenuState $browseMenuState" }
-        val resId = com.duckduckgo.mobile.android.R.drawable.ic_menu_hamburger_24
+        val resId = com.duckduckgo.mobile.android.R.drawable.ic_menu_vertical_24
         omnibar.configureBrowserMenuIcon(resId)
         browserNavigationBarIntegration.configureBrowserMenuIcon(resId)
         bottomSheetMenu?.render(viewState = browseMenuState)
