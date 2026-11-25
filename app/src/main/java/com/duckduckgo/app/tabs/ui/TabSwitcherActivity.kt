@@ -309,6 +309,10 @@ class TabSwitcherActivity :
         // light icons to stay readable on it, regardless of the system theme.
         val barStyle = SystemBarStyle.dark(Color.TRANSPARENT)
         enableEdgeToEdge(statusBarStyle = barStyle, navigationBarStyle = barStyle)
+        // Paint the status bar dark green directly. On Android 15+ this is
+        // ignored and the scrim below covers it; on older versions it is the
+        // reliable path and does not depend on inset timing.
+        window.statusBarColor = getColor(R.color.novaprofile_header_dark)
 
         setContentView(binding.root)
         // Install after setContentView: setContentView() calls removeAllViews() on the
@@ -414,6 +418,10 @@ class TabSwitcherActivity :
     private fun applyNovaProfileTabSwitcherChrome() {
         // Tab switcher toolbar is dark green like the browser header, so its title
         // and icons must be white to stay readable on it.
+        // The light background lives on the Toolbar itself
+        // (?attr/daxColorToolbar in the design-system layout), not on the
+        // AppBarLayout around it, so paint the Toolbar directly.
+        toolbar.setBackgroundColor(getColor(R.color.novaprofile_header_dark))
         toolbar.setTitleTextColor(Color.WHITE)
         toolbar.navigationIcon?.mutate()?.setTint(Color.WHITE)
         toolbar.overflowIcon?.mutate()?.setTint(Color.WHITE)
@@ -428,10 +436,16 @@ class TabSwitcherActivity :
         val tag = "novaprofile_status_bar_scrim"
         val contentRoot = window.decorView.findViewById<ViewGroup>(android.R.id.content) ?: return
         if (contentRoot.findViewWithTag<View>(tag) != null) return
+        // Size the scrim immediately from the system status-bar height, so it
+        // is visible even if the insets listener never fires (installed in
+        // onCreate before the window attaches). The listener below still
+        // corrects the height for a display cutout.
+        val statusBarHeight = resources.getIdentifier("status_bar_height", "dimen", "android")
+            .takeIf { it > 0 }?.let { resources.getDimensionPixelSize(it) } ?: 0
         val scrim = View(this).apply {
             this.tag = tag
             setBackgroundColor(getColor(R.color.novaprofile_header_dark))
-            layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, 0, Gravity.TOP)
+            layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, statusBarHeight, Gravity.TOP)
         }
         contentRoot.addView(scrim)
         ViewCompat.setOnApplyWindowInsetsListener(scrim) { v, insets ->
