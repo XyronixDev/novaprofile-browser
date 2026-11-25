@@ -615,4 +615,18 @@
         <item name="android:minWidth">44dp</item>
     </style>
 
+    <!-- NovaProfile: locks the whole browser to the NovaProfile theme — dark green
+         toolbar/status bar, white surfaces. Applied from DuckDuckGoActivity (the base
+         class) so every browser screen gets it. The Light theme's dark text/icons
+         stay, because the content surfaces are white. -->
+    <style name="ThemeOverlay.NovaProfile">
+        <item name="daxColorBackground">#FFFFFF</item>
+        <item name="daxColorSurface">#FFFFFF</item>
+        <item name="daxColorSurfaceSecondary">#FFFFFF</item>
+        <item name="daxColorBrowserOverlay">#FFFFFF</item>
+        <item name="daxColorToolbar">#0B3D2E</item>
+        <item name="preferredStatusBarColor">#0B3D2E</item>
+        <item name="preferredNavigationBarColor">#0B3D2E</item>
+    </style>
+
 </resources>
