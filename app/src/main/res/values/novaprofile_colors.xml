@@ -5,5 +5,5 @@
     <!-- NovaProfile dark green header (matches target browser screenshot). -->
     <color name="novaprofile_header_dark">#0B3D2E</color>
     <!-- NovaProfile bright green wave at the bottom of the browser header. -->
-    <color name="novaprofile_wave_green">#9BE7C7</color>
+    <color name="novaprofile_wave_green">#00000000</color>
 </resources>
