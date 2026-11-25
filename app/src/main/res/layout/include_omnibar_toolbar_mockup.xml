@@ -47,7 +47,7 @@
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
-            app:srcCompat="@drawable/ic_launcher_foreground_novaprofile" />
+            app:srcCompat="@drawable/nova_original_icon" />
 
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/mockOmniBarContainerShadow"
