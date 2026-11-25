@@ -330,7 +330,6 @@ class OmnibarLayout @JvmOverloads constructor(
     internal val browserMenuImageView: ImageView by lazy { findViewById(R.id.browserMenuImageView) }
     override val shieldIcon: LottieAnimationView by lazy { findViewById(R.id.shieldIcon) }
     internal val novaProfileIcon: ImageView by lazy { findViewById(R.id.novaProfileIcon) }
-    private val novaLockIcon: ImageView by lazy { findViewById(R.id.novaLockIcon) }
     internal val addressBarTrackersBlockedAnimationShieldIcon: LottieAnimationView by lazy {
         findViewById(R.id.addressBarTrackersBlockedAnimationShieldIcon)
     }
@@ -690,14 +689,12 @@ class OmnibarLayout @JvmOverloads constructor(
                 searchIcon.show()
                 shieldIcon.gone()
                 novaProfileIcon.gone()
-                novaLockIcon.gone()
                 daxIcon.gone()
                 globeIcon.gone()
                 duckPlayerIcon.gone()
             }
 
             PrivacyShield -> {
-                novaLockIcon.show()
                 novaProfileIcon.gone()
                 shieldIcon.gone()
                 searchIcon.gone()
@@ -720,7 +717,6 @@ class OmnibarLayout @JvmOverloads constructor(
                 }
                 shieldIcon.gone()
                 novaProfileIcon.gone()
-                novaLockIcon.gone()
                 searchIcon.gone()
                 globeIcon.gone()
                 duckPlayerIcon.gone()
@@ -731,7 +727,6 @@ class OmnibarLayout @JvmOverloads constructor(
                 daxIcon.gone()
                 shieldIcon.gone()
                 novaProfileIcon.gone()
-                novaLockIcon.gone()
                 searchIcon.gone()
                 duckPlayerIcon.gone()
             }
@@ -741,7 +736,6 @@ class OmnibarLayout @JvmOverloads constructor(
                 daxIcon.gone()
                 shieldIcon.gone()
                 novaProfileIcon.gone()
-                novaLockIcon.gone()
                 searchIcon.gone()
                 duckPlayerIcon.setImageResource(resolveDuckPlayerIcon(viewState.isAddressBarRebrandEnabled))
                 duckPlayerIcon.show()
@@ -763,7 +757,6 @@ class OmnibarLayout @JvmOverloads constructor(
                 globeIcon.gone()
                 shieldIcon.gone()
                 novaProfileIcon.gone()
-                novaLockIcon.gone()
                 searchIcon.gone()
                 duckPlayerIcon.gone()
             }
@@ -893,7 +886,6 @@ class OmnibarLayout @JvmOverloads constructor(
         // so it doesn't show alongside the Duck.ai header.
         shieldIcon.gone()
         novaProfileIcon.gone()
-        novaLockIcon.gone()
         if (viewState.isProgressBarUpgradeEnabled) {
             updatePageLoadProgressBar(viewState)
         } else {
