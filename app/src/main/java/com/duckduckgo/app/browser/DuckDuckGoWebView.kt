@@ -24,6 +24,7 @@ import android.util.AttributeSet
 import android.util.SparseArray
 import android.view.ActionMode
 import android.view.MotionEvent
+import android.view.View
 import android.view.WindowInsets
 import android.view.autofill.AutofillValue
 import android.view.inputmethod.EditorInfo
@@ -102,6 +103,10 @@ class DuckDuckGoWebView :
         attrs: AttributeSet?,
     ) : super(context, attrs) {
         isNestedScrollingEnabled = true
+        // NovaProfile: smoother WebView scrolling — no overscroll glow and a
+        // hardware layer so flings render without jank.
+        overScrollMode = View.OVER_SCROLL_NEVER
+        setLayerType(View.LAYER_TYPE_HARDWARE, null)
     }
 
     override fun startActionMode(callback: ActionMode.Callback?): ActionMode? =
