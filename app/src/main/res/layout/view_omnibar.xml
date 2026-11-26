@@ -612,13 +612,5 @@
 
         </androidx.constraintlayout.widget.ConstraintLayout>
 
-        <ImageView
-            android:id="@+id/novaWave"
-            android:layout_width="match_parent"
-            android:layout_height="24dp"
-            android:importantForAccessibility="no"
-            android:scaleType="fitXY"
-            android:src="@drawable/nova_wave" />
-
     </LinearLayout>
 </merge>
