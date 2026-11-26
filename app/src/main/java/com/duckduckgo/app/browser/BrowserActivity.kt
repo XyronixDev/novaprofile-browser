@@ -52,7 +52,6 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
 import androidx.core.view.updateLayoutParams
 import androidx.core.content.ContextCompat
-import com.novaprofiles.app.ui.MainActivity
 import com.novaprofiles.app.util.NovaProfileSession
 import com.novaprofiles.app.util.ProxyHelper
 import androidx.core.view.postDelayed
@@ -116,6 +115,7 @@ import com.duckduckgo.app.tabs.ui.DefaultSnackbar
 import com.duckduckgo.app.tabs.ui.TabSwitcherActivity
 import com.duckduckgo.autofill.api.emailprotection.EmailProtectionLinkVerifier
 import com.duckduckgo.browser.api.ui.BrowserScreens.BookmarksScreenNoParams
+import com.duckduckgo.browser.api.ui.BrowserScreens.SettingsScreenNoParams
 import com.duckduckgo.browser.api.ui.BrowserScreens.TabSwitcherScreenWithParams
 import com.duckduckgo.browser.feature.toggles.AndroidBrowserConfigFeature
 import com.duckduckgo.browsermode.api.BrowserMode
@@ -1238,16 +1238,7 @@ open class BrowserActivity : DuckDuckGoActivity() {
     }
 
     fun launchSettings() {
-        // NovaProfile v2.8.50: the browser's Settings opens NovaProfile's
-        // own settings (reference screen 2) instead of DuckDuckGo's
-        // settings — the app stops feeling like DuckDuckGo. The existing
-        // MainActivity is brought to front; the browser stays alive
-        // underneath, so Back returns to it.
-        val intent = Intent(this, MainActivity::class.java).apply {
-            putExtra(NovaProfileSession.EXTRA_OPEN_SETTINGS, true)
-            flags = Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
-        }
-        startActivity(intent)
+        globalActivityStarter.start(this, SettingsScreenNoParams)
     }
 
     fun launchSitePermissionsSettings() {
