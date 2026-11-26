@@ -20,7 +20,6 @@ val GoBrowserCard = Color(0xFF33291F)
 
 // v2.8.24 — premium header palette sampled from the 5 target screenshots.
 val GoHeaderDark = Color(0xFF0A3D2E)
-val GoHeaderWave = Color(0xFF0E5C40)
 val GoTitle = Color(0xFF101828)
 val GoGold = Color(0xFFFFC531)
 val GoContentBg = Color(0xFFEDF3FA)
