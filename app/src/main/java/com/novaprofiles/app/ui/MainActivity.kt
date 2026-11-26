@@ -29,6 +29,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.IntrinsicSize
@@ -149,6 +150,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -797,6 +799,7 @@ fun MainScreen(vm: ProfileViewModel, autoRunProfileId: Long? = null, autoRunQuer
             .fillMaxSize()
             .background(GoContentBg)
     ) {
+        BottomWave(modifier = Modifier.align(Alignment.BottomCenter))
         when (route) {
             HomeRoute.PROFILES -> ProfilesScreen(
                 profiles = profiles,
@@ -1046,20 +1049,77 @@ private fun AboutFeatureRow(
 }
 
 /**
- * The app header — a flat dark-green bar. [content] is the header row
- * (back/logo/title/premium or bell/gear).
+ * v2.8.24: the premium wave header — dark green, with the layered wave
+ * edge from the reference screenshots, drawn on a Canvas (no assets).
+ * [content] is the header row (back/logo/title/premium or bell/gear).
  */
 @Composable
 internal fun WaveHeader(content: @Composable () -> Unit) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(GoHeaderDark)
-            .statusBarsPadding()
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        contentAlignment = Alignment.TopStart
-    ) {
-        content()
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(GoHeaderDark)
+                .statusBarsPadding()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            contentAlignment = Alignment.TopStart
+        ) {
+            content()
+        }
+        Canvas(modifier = Modifier.fillMaxWidth().height(26.dp)) {
+            val w = size.width
+            val h = size.height
+            // Mint wave band underneath.
+            val mintPath = Path().apply {
+                moveTo(0f, 0f)
+                lineTo(w, 0f)
+                lineTo(w, h * 0.55f)
+                cubicTo(w * 0.75f, h * 1.1f, w * 0.45f, h * 0.1f, w * 0.2f, h * 0.7f)
+                cubicTo(w * 0.08f, h * 0.95f, w * 0.03f, h * 0.8f, 0f, h * 0.6f)
+                close()
+            }
+            drawPath(mintPath, Color(0xFF9BE8C8))
+            // Dark wave on top, slightly higher.
+            val darkPath = Path().apply {
+                moveTo(0f, 0f)
+                lineTo(w, 0f)
+                lineTo(w, h * 0.35f)
+                cubicTo(w * 0.7f, h * 0.9f, w * 0.4f, -h * 0.1f, w * 0.15f, h * 0.5f)
+                cubicTo(w * 0.06f, h * 0.7f, w * 0.02f, h * 0.6f, 0f, h * 0.4f)
+                close()
+            }
+            drawPath(darkPath, GoHeaderDark)
+        }
+    }
+}
+
+/**
+ * v2.8.24: the green wave rising from the bottom of the screen (behind
+ * the bottom nav / buttons), drawn on a Canvas (no assets).
+ */
+@Composable
+private fun BottomWave(modifier: Modifier = Modifier) {
+    Canvas(modifier = modifier.fillMaxWidth().height(56.dp)) {
+        val w = size.width
+        val h = size.height
+        val lightPath = Path().apply {
+            moveTo(0f, h)
+            lineTo(w, h)
+            lineTo(w, h * 0.45f)
+            cubicTo(w * 0.7f, h * 0.1f, w * 0.4f, h * 0.9f, w * 0.15f, h * 0.4f)
+            cubicTo(w * 0.06f, h * 0.2f, w * 0.02f, h * 0.5f, 0f, h * 0.35f)
+            close()
+        }
+        drawPath(lightPath, Color(0xFF4ADE9E))
+        val darkPath = Path().apply {
+            moveTo(0f, h)
+            lineTo(w, h)
+            lineTo(w, h * 0.7f)
+            cubicTo(w * 0.75f, h * 0.3f, w * 0.45f, h * 1.0f, w * 0.2f, h * 0.65f)
+            cubicTo(w * 0.08f, h * 0.45f, w * 0.03f, h * 0.7f, 0f, h * 0.6f)
+            close()
+        }
+        drawPath(darkPath, GoHeaderDark)
     }
 }
 
