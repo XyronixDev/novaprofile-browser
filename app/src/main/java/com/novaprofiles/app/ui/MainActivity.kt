@@ -184,20 +184,6 @@ import kotlin.math.abs
 private const val MAX_PROFILES = 25
 
 class MainActivity : ComponentActivity() {
-    // v2.8.50: the browser's Settings opens NovaProfile's own settings.
-    // The request arrives as an intent extra; it is counted (not just
-    // a boolean) so a reused activity brought to front by
-    // REORDER_TO_FRONT still reacts to each new request.
-    private val settingsRequestCount = mutableStateOf(0)
-
-    override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent)
-        setIntent(intent)
-        if (intent.getBooleanExtra(NovaProfileSession.EXTRA_OPEN_SETTINGS, false)) {
-            settingsRequestCount.value += 1
-        }
-        intent.removeExtra(NovaProfileSession.EXTRA_OPEN_SETTINGS)
-    }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge(
@@ -220,13 +206,6 @@ class MainActivity : ComponentActivity() {
         val autoRunQuery = intent.getStringExtra(NovaProfileSession.EXTRA_AUTO_RUN_QUERY)
         intent.removeExtra(NovaProfileSession.EXTRA_AUTO_RUN_PROFILE_ID)
         intent.removeExtra(NovaProfileSession.EXTRA_AUTO_RUN_QUERY)
-        // v2.8.50: the browser's Settings opens NovaProfile's own
-        // settings — read the request here for a fresh launch; a reused
-        // activity gets it via onNewIntent instead.
-        if (intent.getBooleanExtra(NovaProfileSession.EXTRA_OPEN_SETTINGS, false)) {
-            settingsRequestCount.value = 1
-        }
-        intent.removeExtra(NovaProfileSession.EXTRA_OPEN_SETTINGS)
         // v2.8.20: lock the WebView data dir at process start, before
         // setContent/composition can create any WebView. The restart
         // writes its target to prefs (commit); the auto-run intent
@@ -250,12 +229,7 @@ class MainActivity : ComponentActivity() {
                 CompositionLocalProvider(
                     LocalTextStyle provides LocalTextStyle.current.copy(lineHeight = 1.2.em)
                 ) {
-                    MainScreen(
-                        vm = vm,
-                        autoRunProfileId = autoRunProfileId,
-                        autoRunQuery = autoRunQuery,
-                        settingsRequest = settingsRequestCount.value,
-                    )
+                                        MainScreen(vm = vm, autoRunProfileId = autoRunProfileId, autoRunQuery = autoRunQuery)
                 }
             }
         }
@@ -458,12 +432,7 @@ private enum class ProfileFilter { ALL, ACTIVE, OFFLINE }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen(
-    vm: ProfileViewModel,
-    autoRunProfileId: Long? = null,
-    autoRunQuery: String? = null,
-    settingsRequest: Int = 0,
-) {
+fun MainScreen(vm: ProfileViewModel, autoRunProfileId: Long? = null, autoRunQuery: String? = null) {
     val profiles by vm.profiles.collectAsState()
     val addEnabled = profiles.size < MAX_PROFILES
     val query by vm.query.collectAsState()
@@ -476,12 +445,7 @@ fun MainScreen(
     val proxyStore = remember { ProxyStore(ctx) }
     val savedProxies by proxyStore.proxies.collectAsState()
 
-    var route by remember { mutableStateOf(HomeRoute.PROFILES) }
-    // v2.8.50: the browser's Settings opens NovaProfile's own settings —
-    // every new request (fresh launch or reused activity) lands here.
-    LaunchedEffect(settingsRequest) {
-        if (settingsRequest > 0) route = HomeRoute.SETTINGS
-    }
+        var route by remember { mutableStateOf(HomeRoute.PROFILES) }
     // v2.8.24: the Add/Edit form draft lives here (not in the form) so
     // it survives the trip to the Add Proxy screen and back.
     var draft by remember { mutableStateOf<Profile?>(null) }
