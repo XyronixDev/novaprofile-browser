@@ -42,10 +42,6 @@ object NovaProfileSession {
     const val EXTRA_AUTO_RUN_PROFILE_ID = "novaprofile_auto_run_profile_id"
     const val EXTRA_AUTO_RUN_QUERY = "novaprofile_auto_run_query"
 
-    // v2.8.50: the browser's Settings opens NovaProfile's own settings
-    // (reference screen 2) instead of DuckDuckGo's settings.
-    const val EXTRA_OPEN_SETTINGS = "novaprofile_open_settings"
-
     // Which profile's data dir this process already uses (null until
     // the first prepare() in this process sets one). Android allows
     // exactly one WebView data dir per process.
