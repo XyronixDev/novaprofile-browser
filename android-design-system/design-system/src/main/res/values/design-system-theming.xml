@@ -623,6 +623,10 @@
         <item name="daxColorBackground">#FFFFFF</item>
         <item name="daxColorSurface">#FFFFFF</item>
         <item name="daxColorSurfaceSecondary">#FFFFFF</item>
+        <item name="daxColorSurfaceTertiary">#FFFFFF</item>
+        <item name="daxColorContainer">#FFFFFF</item>
+        <item name="daxColorWindow">#FFFFFF</item>
+        <item name="daxColorDuckAiBackground">#FFFFFF</item>
         <item name="daxColorBrowserOverlay">#FFFFFF</item>
         <item name="daxColorToolbar">#0B3D2E</item>
         <item name="preferredStatusBarColor">#0B3D2E</item>
