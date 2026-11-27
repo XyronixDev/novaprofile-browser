@@ -18,6 +18,7 @@ package com.duckduckgo.app.browser.nativeinput
 
 import android.app.Activity
 import android.content.res.Configuration
+import android.graphics.Color
 import android.graphics.Outline
 import android.graphics.drawable.Drawable
 import android.net.Uri
@@ -53,6 +54,7 @@ import com.duckduckgo.app.pixels.AppPixelName
 import com.duckduckgo.app.statistics.pixels.Pixel
 import com.duckduckgo.app.tabs.model.TabEntity
 import com.duckduckgo.browser.api.autocomplete.AutoComplete.AutoCompleteSuggestion
+import com.duckduckgo.browser.ui.tabs.NewTabSwitcherButton
 import com.duckduckgo.browser.ui.tabs.TabSwitcherButton
 import com.duckduckgo.common.ui.view.getColorFromAttr
 import com.duckduckgo.common.ui.view.gone
@@ -1022,7 +1024,10 @@ class RealNativeInputManager @Inject constructor(
         }
         navBarShown = null
         pendingEnterOwnsAnimating = false
-        navBarTabCountObserver?.let { existing -> navBarTabCountLiveData?.removeObserver(existing) }
+        // The native-input tabs button sits on the dark-green header, so its count
+    // and icon need a white tint to stay readable.
+    (tabsButton as? NewTabSwitcherButton)?.setIconTint(Color.WHITE)
+    navBarTabCountObserver?.let { existing -> navBarTabCountLiveData?.removeObserver(existing) }
         navBarTabCountObserver = null
         navBarTabCountLiveData = null
         floatingSubmitContainer?.let { container ->
@@ -1131,7 +1136,10 @@ class RealNativeInputManager @Inject constructor(
         lifecycleOwner: LifecycleOwner,
         tabs: LiveData<List<TabEntity>>,
     ) {
-        navBarTabCountObserver?.let { existing -> navBarTabCountLiveData?.removeObserver(existing) }
+        // The native-input tabs button sits on the dark-green header, so its count
+    // and icon need a white tint to stay readable.
+    (tabsButton as? NewTabSwitcherButton)?.setIconTint(Color.WHITE)
+    navBarTabCountObserver?.let { existing -> navBarTabCountLiveData?.removeObserver(existing) }
         val tabCount = tabs.map { it.size }
         val observer = Observer<Int> { count -> tabsButton.count = count }
         navBarTabCountLiveData = tabCount
