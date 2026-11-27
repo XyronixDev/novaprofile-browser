@@ -1024,10 +1024,7 @@ class RealNativeInputManager @Inject constructor(
         }
         navBarShown = null
         pendingEnterOwnsAnimating = false
-        // The native-input tabs button sits on the dark-green header, so its count
-    // and icon need a white tint to stay readable.
-    (tabsButton as? NewTabSwitcherButton)?.setIconTint(Color.WHITE)
-    navBarTabCountObserver?.let { existing -> navBarTabCountLiveData?.removeObserver(existing) }
+        navBarTabCountObserver?.let { existing -> navBarTabCountLiveData?.removeObserver(existing) }
         navBarTabCountObserver = null
         navBarTabCountLiveData = null
         floatingSubmitContainer?.let { container ->
