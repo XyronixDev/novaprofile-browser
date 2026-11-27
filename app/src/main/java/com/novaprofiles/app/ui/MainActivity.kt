@@ -801,6 +801,12 @@ fun MainScreen(vm: ProfileViewModel, autoRunProfileId: Long? = null, autoRunQuer
             .background(GoContentBg)
     ) {
         BottomWave(modifier = Modifier.align(Alignment.BottomCenter).zIndex(1f))
+        // The bottom wave is drawn in front (zIndex) and is 56.dp tall, so the
+        // page content is inset by the same height — otherwise the wave covers
+        // the bottom nav and the Save/Cancel/Add buttons.
+        Column(
+            modifier = Modifier.fillMaxSize().padding(bottom = 56.dp)
+        ) {
         when (route) {
             HomeRoute.PROFILES -> ProfilesScreen(
                 profiles = profiles,
@@ -891,6 +897,7 @@ fun MainScreen(vm: ProfileViewModel, autoRunProfileId: Long? = null, autoRunQuer
                     )
                 }
             }
+        }
         }
     }
 
