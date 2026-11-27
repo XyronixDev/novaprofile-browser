@@ -153,6 +153,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -799,7 +800,7 @@ fun MainScreen(vm: ProfileViewModel, autoRunProfileId: Long? = null, autoRunQuer
             .fillMaxSize()
             .background(GoContentBg)
     ) {
-        BottomWave(modifier = Modifier.align(Alignment.BottomCenter))
+        BottomWave(modifier = Modifier.align(Alignment.BottomCenter).zIndex(1f))
         when (route) {
             HomeRoute.PROFILES -> ProfilesScreen(
                 profiles = profiles,
