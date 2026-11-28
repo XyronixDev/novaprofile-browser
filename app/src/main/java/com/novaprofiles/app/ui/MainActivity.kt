@@ -87,6 +87,10 @@ import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.Dns
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.LocationOn
@@ -1099,7 +1103,7 @@ internal fun WaveHeader(content: @Composable () -> Unit) {
  * the bottom nav / buttons), drawn on a Canvas (no assets).
  */
 @Composable
-private fun BottomWave(modifier: Modifier = Modifier) {
+internal fun BottomWave(modifier: Modifier = Modifier) {
     Canvas(modifier = modifier.fillMaxWidth().height(56.dp)) {
         val w = size.width
         val h = size.height
@@ -2249,6 +2253,7 @@ private fun AddProxyBody(
     var newUser by remember { mutableStateOf("") }
     var newPass by remember { mutableStateOf("") }
     var showPass by remember { mutableStateOf(false) }
+    val clipboard = LocalClipboardManager.current
     var adding by remember { mutableStateOf(false) }
     var formError by remember { mutableStateOf<String?>(null) }
     var testingIds by remember { mutableStateOf<Set<String>>(emptySet()) }
@@ -2401,54 +2406,101 @@ private fun AddProxyBody(
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(16.dp))
                         .border(1.dp, GoDivider, RoundedCornerShape(16.dp))
-                        .background(Color.White)
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                            .background(Color.White)
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Text("Add proxy", fontWeight = FontWeight.Bold, fontSize = 17.sp, color = GoTitle)
-                    Text(
-                        "SOCKS5 only — the proxy is tested before it is saved.",
-                        color = GoGreyText,
-                        fontSize = 14.sp
-                    )
-                    OutlinedTextField(
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(CircleShape)
+                                .background(GoMintBg),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Filled.Shield, null, tint = GoGreenDark, modifier = Modifier.size(26.dp))
+                        }
+                        Spacer(Modifier.width(12.dp))
+                        Box(
+                            modifier = Modifier
+                                .width(2.dp)
+                                .height(28.dp)
+                                .background(GoGreen)
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text("Add Proxy", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = GoTitle)
+                            Text(
+                                "Enter your proxy details to connect securely.",
+                                color = GoGreyText,
+                                fontSize = 13.sp
+                            )
+                        }
+                    }
+                    ManualProxyField(
+                        icon = Icons.Filled.Public,
+                        label = "IP Address",
                         value = newIp,
                         onValueChange = { newIp = it; formError = null },
-                        label = { Text("IP") },
-                        placeholder = { Text("198.165.0.0") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
+                        placeholder = "Enter IP address...",
+                        trailingIcon = {
+                            IconButton(onClick = {
+                                clipboard.getText()?.text?.let { pasted ->
+                                    newIp = pasted.trim()
+                                    formError = null
+                                }
+                            }) {
+                                Icon(Icons.Filled.ContentCopy, null, tint = GoGreenDark)
+                            }
+                        }
                     )
-                    OutlinedTextField(
+                    ManualProxyField(
+                        icon = Icons.Filled.Dns,
+                        label = "Port",
                         value = newPort,
                         onValueChange = { newPort = it.filter { c -> c.isDigit() }; formError = null },
-                        label = { Text("Port") },
-                        placeholder = { Text("8080") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                        placeholder = "Enter port number...",
+                        keyboardType = KeyboardType.Number,
+                        trailingIcon = {
+                            IconButton(onClick = {
+                                clipboard.getText()?.text?.let { pasted ->
+                                    newPort = pasted.filter { c -> c.isDigit() }
+                                    formError = null
+                                }
+                            }) {
+                                Icon(Icons.Filled.ContentCopy, null, tint = GoGreenDark)
+                            }
+                        }
                     )
-                    OutlinedTextField(
+                    ManualProxyField(
+                        icon = Icons.Filled.Person,
+                        label = "Username",
                         value = newUser,
                         onValueChange = { newUser = it },
-                        label = { Text("Username") },
-                        placeholder = { Text("Proxy login") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
+                        placeholder = "Enter username...",
+                        trailingIcon = {
+                            IconButton(onClick = {
+                                clipboard.getText()?.text?.let { pasted ->
+                                    newUser = pasted
+                                }
+                            }) {
+                                Icon(Icons.Filled.ContentCopy, null, tint = GoGreenDark)
+                            }
+                        }
                     )
-                    OutlinedTextField(
+                    ManualProxyField(
+                        icon = Icons.Filled.Lock,
+                        label = "Password",
                         value = newPass,
                         onValueChange = { newPass = it },
-                        label = { Text("Password") },
-                        placeholder = { Text("Proxy password") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
+                        placeholder = "Enter password...",
                         visualTransformation = if (showPass) VisualTransformation.None else PasswordVisualTransformation(),
                         trailingIcon = {
                             IconButton(onClick = { showPass = !showPass }) {
                                 Icon(
                                     if (showPass) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
-                                    contentDescription = if (showPass) "Hide password" else "Show password"
+                                    contentDescription = if (showPass) "Hide password" else "Show password",
+                                    tint = GoGreenDark
                                 )
                             }
                         }
@@ -2487,8 +2539,28 @@ private fun AddProxyBody(
                         enabled = !adding && newIp.trim().isNotEmpty() &&
                             (newPort.isBlank() || newPort.toIntOrNull() in 1..65535),
                         colors = ButtonDefaults.buttonColors(containerColor = GoGreen),
-                        modifier = Modifier.fillMaxWidth()
-                    ) { Text(if (adding) "Testing…" else "Add proxy") }
+                        shape = RoundedCornerShape(28.dp),
+                        modifier = Modifier.fillMaxWidth().height(56.dp)
+                    ) { Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(28.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.White),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(Icons.Filled.Add, null, tint = GoGreen, modifier = Modifier.size(18.dp))
+                            }
+                            Spacer(Modifier.width(12.dp))
+                            Text("|", color = Color.White, fontSize = 16.sp)
+                            Spacer(Modifier.width(12.dp))
+                            Text(
+                                if (adding) "Testing…" else "Add Proxy",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp,
+                                color = Color.White
+                            )
+                        } }
                 }
             }
             // Direct. v2.8.25: Direct is the default (no proxy) — it
@@ -2616,6 +2688,58 @@ private fun AddProxyBody(
                 }
             }
             Spacer(Modifier.height(8.dp))
+    }
+}
+
+/**
+ * v2.8.57: one manual-proxy field row (reference IMG_20261124_205817) —
+ * mint icon circle + bold label above a rounded field with a trailing icon.
+ */
+@Composable
+private fun ManualProxyField(
+    icon: ImageVector,
+    label: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+    keyboardType: KeyboardType = KeyboardType.Text,
+    visualTransformation: VisualTransformation = VisualTransformation.None,
+    trailingIcon: @Composable (() -> Unit)? = null
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .border(1.dp, GoDivider, RoundedCornerShape(16.dp))
+            .background(Color.White)
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .clip(CircleShape)
+                .background(GoMintBg),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(icon, null, tint = GoGreenDark, modifier = Modifier.size(26.dp))
+        }
+        Spacer(Modifier.width(14.dp))
+        Column(Modifier.weight(1f)) {
+            Text(label, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = GoGreenDark)
+            Spacer(Modifier.height(6.dp))
+            OutlinedTextField(
+                value = value,
+                onValueChange = onValueChange,
+                placeholder = { Text(placeholder, color = GoGreyText, fontSize = 13.sp) },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp),
+                keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+                visualTransformation = visualTransformation,
+                trailingIcon = trailingIcon
+            )
+        }
     }
 }
 
@@ -3115,7 +3239,8 @@ private fun ProxyPickerView(
                             Button(
                                 onClick = { onPicked(wp, cs) },
                                 colors = ButtonDefaults.buttonColors(containerColor = GoGreen),
-                                modifier = Modifier.fillMaxWidth()
+                        shape = RoundedCornerShape(28.dp),
+                        modifier = Modifier.fillMaxWidth().height(56.dp)
                             ) { Text("Add proxy") }
                         }
                     } else if (pickedCode == code) {
@@ -3175,7 +3300,8 @@ private fun ExtendedSectionView(
         Button(
             onClick = onBack,
             colors = ButtonDefaults.buttonColors(containerColor = GoGreen),
-            modifier = Modifier.fillMaxWidth()
+                        shape = RoundedCornerShape(28.dp),
+                        modifier = Modifier.fillMaxWidth().height(56.dp)
         ) { Text("Save") }
         Spacer(Modifier.height(24.dp))
     }
@@ -3221,7 +3347,8 @@ private fun OverviewSection(draft: Profile, onDraft: (Profile) -> Unit) {
     Button(
         onClick = { onDraft(Profile.randomFingerprint(draft)) },
         colors = ButtonDefaults.buttonColors(containerColor = GoGreen),
-        modifier = Modifier.fillMaxWidth()
+                        shape = RoundedCornerShape(28.dp),
+                        modifier = Modifier.fillMaxWidth().height(56.dp)
     ) { Text("NEW FINGERPRINT") }
     Column(
         modifier = Modifier
