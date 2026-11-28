@@ -3238,9 +3238,8 @@ private fun ProxyPickerView(
                             Text("HTTP • Free", color = GoGreyText)
                             Button(
                                 onClick = { onPicked(wp, cs) },
-                                colors = ButtonDefaults.buttonColors(containerColor = GoGreen),
-                        shape = RoundedCornerShape(28.dp),
-                        modifier = Modifier.fillMaxWidth().height(56.dp)
+                        colors = ButtonDefaults.buttonColors(containerColor = GoGreen),
+                        modifier = Modifier.fillMaxWidth()
                             ) { Text("Add proxy") }
                         }
                     } else if (pickedCode == code) {
@@ -3299,9 +3298,8 @@ private fun ExtendedSectionView(
         }
         Button(
             onClick = onBack,
-            colors = ButtonDefaults.buttonColors(containerColor = GoGreen),
-                        shape = RoundedCornerShape(28.dp),
-                        modifier = Modifier.fillMaxWidth().height(56.dp)
+                        colors = ButtonDefaults.buttonColors(containerColor = GoGreen),
+                        modifier = Modifier.fillMaxWidth()
         ) { Text("Save") }
         Spacer(Modifier.height(24.dp))
     }
@@ -3346,9 +3344,8 @@ private fun OverviewSection(draft: Profile, onDraft: (Profile) -> Unit) {
     }
     Button(
         onClick = { onDraft(Profile.randomFingerprint(draft)) },
-        colors = ButtonDefaults.buttonColors(containerColor = GoGreen),
-                        shape = RoundedCornerShape(28.dp),
-                        modifier = Modifier.fillMaxWidth().height(56.dp)
+                        colors = ButtonDefaults.buttonColors(containerColor = GoGreen),
+                        modifier = Modifier.fillMaxWidth()
     ) { Text("NEW FINGERPRINT") }
     Column(
         modifier = Modifier
