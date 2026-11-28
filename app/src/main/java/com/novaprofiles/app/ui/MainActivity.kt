@@ -153,7 +153,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.zIndex
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -800,13 +799,7 @@ fun MainScreen(vm: ProfileViewModel, autoRunProfileId: Long? = null, autoRunQuer
             .fillMaxSize()
             .background(GoContentBg)
     ) {
-        BottomWave(modifier = Modifier.align(Alignment.BottomCenter).zIndex(1f))
-        // The bottom wave is drawn in front (zIndex) and is 56.dp tall, so the
-        // page content is inset by the same height — otherwise the wave covers
-        // the bottom nav and the Save/Cancel/Add buttons.
-        Column(
-            modifier = Modifier.fillMaxSize().padding(bottom = 56.dp)
-        ) {
+        BottomWave(modifier = Modifier.align(Alignment.BottomCenter))
         when (route) {
             HomeRoute.PROFILES -> ProfilesScreen(
                 profiles = profiles,
@@ -898,7 +891,6 @@ fun MainScreen(vm: ProfileViewModel, autoRunProfileId: Long? = null, autoRunQuer
                 }
             }
         }
-        }
     }
 
     if (showAbout) {
@@ -976,48 +968,7 @@ private fun AboutDialog(onDismiss: () -> Unit) {
                         Text("Multi-profile anti-detect browser.", color = GoGreyText, fontSize = 11.sp)
                     }
                 }
-                AboutFeatureRow(
-                    icon = Icons.Filled.Group, iconBg = GoMintBg, iconTint = GoGreenDark,
-                    title = "Up to 25 Profiles",
-                    desc = "Everything free — no billing, no trial."
-                )
-                AboutFeatureRow(
-                    icon = Icons.Filled.Shield, iconBg = Color(0xFFE8F0FE), iconTint = Color(0xFF1A73E8),
-                    title = "Privacy First",
-                    desc = "Per-profile cookies, proxy, user-agent, language, screen, WebGL and Canvas settings."
-                )
-                AboutFeatureRow(
-                    icon = Icons.Filled.Schedule, iconBg = Color(0xFFF3E8FD), iconTint = Color(0xFF7B1FA2),
-                    title = "Powerful Multi-Tab Browser",
-                    desc = "With history, bookmarks, downloads, desktop mode, and find in page and translate."
-                )
-                AboutFeatureRow(
-                    icon = Icons.Filled.Fingerprint, iconBg = Color(0xFFFDE7D9), iconTint = Color(0xFFE8710A),
-                    title = "Advanced Fingerprint Protection",
-                    desc = "JS-level fingerprint protection inside WebView – it is NOT a Chromium fork " +
-                        "and advanced fingerprint tests can still detect the real device."
-                )
-                AboutFeatureRow(
-                    icon = Icons.Filled.Bolt, iconBg = GoMintBg, iconTint = GoGreenDark,
-                    title = "One Profile, Always",
-                    desc = "Run one profile at a time. Data never leaves your phone."
-                )
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(GoMintBg)
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(Icons.Filled.Shield, null, tint = GoGreenDark, modifier = Modifier.size(28.dp))
-                    Spacer(Modifier.width(12.dp))
-                    Column {
-                        Text("Your Privacy. Our Priority.", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = GoGreenDark)
-                        Text("Browse securely and anonymously with NovaProfile.", color = GoGreyText, fontSize = 11.sp)
-                    }
-                }
-                Button(
+                                                                                                                Button(
                     onClick = onDismiss,
                     colors = ButtonDefaults.buttonColors(containerColor = GoGreen),
                     shape = RoundedCornerShape(28.dp),
@@ -1030,31 +981,6 @@ private fun AboutDialog(onDismiss: () -> Unit) {
     }
 }
 
-@Composable
-private fun AboutFeatureRow(
-    icon: ImageVector,
-    iconBg: Color,
-    iconTint: Color,
-    title: String,
-    desc: String
-) {
-    Row(verticalAlignment = Alignment.Top) {
-        Box(
-            modifier = Modifier
-                .size(44.dp)
-                .clip(CircleShape)
-                .background(iconBg),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(icon, null, tint = iconTint, modifier = Modifier.size(24.dp))
-        }
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
-            Text(title, fontWeight = FontWeight.Bold, fontSize = 12.sp, color = GoTitle)
-            Text(desc, color = GoGreyText, fontSize = 11.sp)
-        }
-    }
-}
 
 /**
  * v2.8.24: the premium wave header — dark green, with the layered wave
