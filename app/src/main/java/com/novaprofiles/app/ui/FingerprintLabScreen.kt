@@ -287,12 +287,16 @@ fun FingerprintLabScreen(
     val score = if (scored.isEmpty()) null else (goodCount * 100 / scored.size)
 
     BackHandler { onBack() }
-    Column(
+    // v2.8.57: the wave sits behind the content (V39 pattern) — the lab
+    // screen returns early from MainScreen, so it never got the MainScreen Box wave.
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .background(GoContentBg)
     ) {
-        WaveHeader { PremiumHeader(logoInCircle = true) }
+        BottomWave(modifier = Modifier.align(Alignment.BottomCenter))
+        Column(modifier = Modifier.fillMaxSize()) {
+            WaveHeader { PremiumHeader(logoInCircle = true) }
         Column(
             modifier = Modifier
                 .weight(1f)
@@ -513,5 +517,6 @@ fun FingerprintLabScreen(
             onAddProfile = onAddProfile,
             addEnabled = addEnabled
         )
+        }
     }
 }
